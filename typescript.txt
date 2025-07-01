@@ -1,0 +1,7 @@
+学習方針
+    1. JavaScriptの基礎を習得
+    2. TypeScript Handbookを一周読む
+    3. 簡単なToDoアプリをTypeScriptで作成
+    4. ツールを使いこなす
+    5. エラーから学ぶ
+    6. コミュニティに参加する/情報を収集する
