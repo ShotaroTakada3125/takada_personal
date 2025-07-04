@@ -1,5 +1,1 @@
-# kenshu2025_takada
-2025年度git研修
-
-Konnnitiwa
-Aaaa
+# 髙田の私的利用
