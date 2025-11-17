@@ -1,0 +1,1089 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="#03_口座開設（個人）">
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="ユーザー定義変数">
+        <collectionProp name="Arguments.arguments"/>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="スレッドグループ">
+        <stringProp name="ThreadGroup.num_threads">${__P(thread,100)}</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">${__P(rampup,10)}</stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">false</boolProp>
+        <stringProp name="ThreadGroup.on_sample_error">startnextloop</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="ループコントローラ">
+          <stringProp name="LoopController.loops">1</stringProp>
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+        </elementProp>
+      </ThreadGroup>
+      <hashTree>
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="30_メールアドレス送信/api/account-182" enabled="true">
+          <stringProp name="HTTPSampler.path">/api/account</stringProp>
+          <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+          <stringProp name="HTTPSampler.method">POST</stringProp>
+          <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+          <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+            <collectionProp name="Arguments.arguments">
+              <elementProp name="" elementType="HTTPArgument">
+                <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                <stringProp name="Argument.value">{&quot;email&quot;:&quot;${email}&quot;,&quot;customerType&quot;:&quot;individual&quot;,&quot;adid&quot;:null,&quot;os&quot;:null}</stringProp>
+                <stringProp name="Argument.metadata">=</stringProp>
+              </elementProp>
+            </collectionProp>
+          </elementProp>
+        </HTTPSamplerProxy>
+        <hashTree>
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP ヘッダマネージャ" enabled="true">
+            <collectionProp name="HeaderManager.headers">
+              <elementProp name="Sec-Fetch-Mode" elementType="Header">
+                <stringProp name="Header.name">Sec-Fetch-Mode</stringProp>
+                <stringProp name="Header.value">cors</stringProp>
+              </elementProp>
+              <elementProp name="Referer" elementType="Header">
+                <stringProp name="Header.name">Referer</stringProp>
+                <stringProp name="Header.value">${key}/signup</stringProp>
+              </elementProp>
+              <elementProp name="Sec-Fetch-Site" elementType="Header">
+                <stringProp name="Header.name">Sec-Fetch-Site</stringProp>
+                <stringProp name="Header.value">same-origin</stringProp>
+              </elementProp>
+              <elementProp name="Accept-Language" elementType="Header">
+                <stringProp name="Header.name">Accept-Language</stringProp>
+                <stringProp name="Header.value">ja</stringProp>
+              </elementProp>
+              <elementProp name="Origin" elementType="Header">
+                <stringProp name="Header.name">Origin</stringProp>
+                <stringProp name="Header.value">${key}</stringProp>
+              </elementProp>
+              <elementProp name="Accept" elementType="Header">
+                <stringProp name="Header.name">Accept</stringProp>
+                <stringProp name="Header.value">*/*</stringProp>
+              </elementProp>
+              <elementProp name="X-From" elementType="Header">
+                <stringProp name="Header.name">X-From</stringProp>
+                <stringProp name="Header.value">${key}/signup</stringProp>
+              </elementProp>
+              <elementProp name="sec-ch-ua" elementType="Header">
+                <stringProp name="Header.name">sec-ch-ua</stringProp>
+                <stringProp name="Header.value">&quot;Google Chrome&quot;;v=&quot;141&quot;, &quot;Not?A_Brand&quot;;v=&quot;8&quot;, &quot;Chromium&quot;;v=&quot;141&quot;</stringProp>
+              </elementProp>
+              <elementProp name="sec-ch-ua-mobile" elementType="Header">
+                <stringProp name="Header.name">sec-ch-ua-mobile</stringProp>
+                <stringProp name="Header.value">?0</stringProp>
+              </elementProp>
+              <elementProp name="sec-ch-ua-platform" elementType="Header">
+                <stringProp name="Header.name">sec-ch-ua-platform</stringProp>
+                <stringProp name="Header.value">&quot;macOS&quot;</stringProp>
+              </elementProp>
+              <elementProp name="Content-Type" elementType="Header">
+                <stringProp name="Header.name">Content-Type</stringProp>
+                <stringProp name="Header.value">application/json</stringProp>
+              </elementProp>
+              <elementProp name="Accept-Encoding" elementType="Header">
+                <stringProp name="Header.name">Accept-Encoding</stringProp>
+                <stringProp name="Header.value">gzip, deflate, br, zstd</stringProp>
+              </elementProp>
+              <elementProp name="User-Agent" elementType="Header">
+                <stringProp name="Header.name">User-Agent</stringProp>
+                <stringProp name="Header.value">Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36</stringProp>
+              </elementProp>
+              <elementProp name="Sec-Fetch-Dest" elementType="Header">
+                <stringProp name="Header.name">Sec-Fetch-Dest</stringProp>
+                <stringProp name="Header.value">empty</stringProp>
+              </elementProp>
+            </collectionProp>
+          </HeaderManager>
+          <hashTree/>
+          <RegexExtractor guiclass="RegexExtractorGui" testclass="RegexExtractor" testname="passwordSetURL" enabled="true">
+            <stringProp name="RegexExtractor.useHeaders">false</stringProp>
+            <stringProp name="RegexExtractor.refname">passwordSetURL</stringProp>
+            <stringProp name="RegexExtractor.regex">&quot;token&quot;:\s*&quot;(.+?)&quot;</stringProp>
+            <stringProp name="RegexExtractor.template">$1$</stringProp>
+            <stringProp name="RegexExtractor.default"></stringProp>
+            <boolProp name="RegexExtractor.default_empty_value">false</boolProp>
+            <stringProp name="RegexExtractor.match_number">1</stringProp>
+          </RegexExtractor>
+          <hashTree/>
+          <ConstantTimer guiclass="ConstantTimerGui" testclass="ConstantTimer" testname="定数タイマ" enabled="true">
+            <stringProp name="ConstantTimer.delay">1500</stringProp>
+          </ConstantTimer>
+          <hashTree/>
+        </hashTree>
+        <RecordingController guiclass="RecordController" testclass="RecordingController" testname="記録コントローラ" enabled="false"/>
+        <hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="/api/auth-623" enabled="false">
+            <stringProp name="HTTPSampler.domain">s25-signup-ext-alb-114613775.ap-northeast-1.elb.amazonaws.com</stringProp>
+            <stringProp name="HTTPSampler.port">443</stringProp>
+            <stringProp name="HTTPSampler.protocol">https</stringProp>
+            <stringProp name="HTTPSampler.contentEncoding">utf-8</stringProp>
+            <stringProp name="HTTPSampler.path">/api/auth</stringProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="ユーザー定義変数">
+              <collectionProp name="Arguments.arguments"/>
+            </elementProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP ヘッダマネージャ" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="Sec-Fetch-Mode" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-Mode</stringProp>
+                  <stringProp name="Header.value">cors</stringProp>
+                </elementProp>
+                <elementProp name="Referer" elementType="Header">
+                  <stringProp name="Header.name">Referer</stringProp>
+                  <stringProp name="Header.value">https://s25-signup-ext-alb-114613775.ap-northeast-1.elb.amazonaws.com/signup/invitation</stringProp>
+                </elementProp>
+                <elementProp name="Sec-Fetch-Site" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-Site</stringProp>
+                  <stringProp name="Header.value">same-origin</stringProp>
+                </elementProp>
+                <elementProp name="Accept-Language" elementType="Header">
+                  <stringProp name="Header.name">Accept-Language</stringProp>
+                  <stringProp name="Header.value">ja</stringProp>
+                </elementProp>
+                <elementProp name="Accept" elementType="Header">
+                  <stringProp name="Header.name">Accept</stringProp>
+                  <stringProp name="Header.value">*/*</stringProp>
+                </elementProp>
+                <elementProp name="X-From" elementType="Header">
+                  <stringProp name="Header.name">X-From</stringProp>
+                  <stringProp name="Header.value">https://s25-signup-ext-alb-114613775.ap-northeast-1.elb.amazonaws.com/signup/invitation</stringProp>
+                </elementProp>
+                <elementProp name="sec-ch-ua" elementType="Header">
+                  <stringProp name="Header.name">sec-ch-ua</stringProp>
+                  <stringProp name="Header.value">&quot;Google Chrome&quot;;v=&quot;141&quot;, &quot;Not?A_Brand&quot;;v=&quot;8&quot;, &quot;Chromium&quot;;v=&quot;141&quot;</stringProp>
+                </elementProp>
+                <elementProp name="sec-ch-ua-mobile" elementType="Header">
+                  <stringProp name="Header.name">sec-ch-ua-mobile</stringProp>
+                  <stringProp name="Header.value">?0</stringProp>
+                </elementProp>
+                <elementProp name="sec-ch-ua-platform" elementType="Header">
+                  <stringProp name="Header.name">sec-ch-ua-platform</stringProp>
+                  <stringProp name="Header.value">&quot;macOS&quot;</stringProp>
+                </elementProp>
+                <elementProp name="Content-Type" elementType="Header">
+                  <stringProp name="Header.name">Content-Type</stringProp>
+                  <stringProp name="Header.value">application/json</stringProp>
+                </elementProp>
+                <elementProp name="Accept-Encoding" elementType="Header">
+                  <stringProp name="Header.name">Accept-Encoding</stringProp>
+                  <stringProp name="Header.value">gzip, deflate, br, zstd</stringProp>
+                </elementProp>
+                <elementProp name="User-Agent" elementType="Header">
+                  <stringProp name="Header.name">User-Agent</stringProp>
+                  <stringProp name="Header.value">Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36</stringProp>
+                </elementProp>
+                <elementProp name="Sec-Fetch-Dest" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-Dest</stringProp>
+                  <stringProp name="Header.value">empty</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+          </hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="/api/auth-629" enabled="false">
+            <stringProp name="HTTPSampler.domain">s25-signup-ext-alb-114613775.ap-northeast-1.elb.amazonaws.com</stringProp>
+            <stringProp name="HTTPSampler.port">443</stringProp>
+            <stringProp name="HTTPSampler.protocol">https</stringProp>
+            <stringProp name="HTTPSampler.contentEncoding">utf-8</stringProp>
+            <stringProp name="HTTPSampler.path">/api/auth</stringProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="ユーザー定義変数">
+              <collectionProp name="Arguments.arguments"/>
+            </elementProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP ヘッダマネージャ" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="Sec-Fetch-Mode" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-Mode</stringProp>
+                  <stringProp name="Header.value">cors</stringProp>
+                </elementProp>
+                <elementProp name="Referer" elementType="Header">
+                  <stringProp name="Header.name">Referer</stringProp>
+                  <stringProp name="Header.value">https://s25-signup-ext-alb-114613775.ap-northeast-1.elb.amazonaws.com/signup/set_phone</stringProp>
+                </elementProp>
+                <elementProp name="Sec-Fetch-Site" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-Site</stringProp>
+                  <stringProp name="Header.value">same-origin</stringProp>
+                </elementProp>
+                <elementProp name="Accept-Language" elementType="Header">
+                  <stringProp name="Header.name">Accept-Language</stringProp>
+                  <stringProp name="Header.value">ja</stringProp>
+                </elementProp>
+                <elementProp name="Accept" elementType="Header">
+                  <stringProp name="Header.name">Accept</stringProp>
+                  <stringProp name="Header.value">*/*</stringProp>
+                </elementProp>
+                <elementProp name="X-From" elementType="Header">
+                  <stringProp name="Header.name">X-From</stringProp>
+                  <stringProp name="Header.value">https://s25-signup-ext-alb-114613775.ap-northeast-1.elb.amazonaws.com/signup/set_phone</stringProp>
+                </elementProp>
+                <elementProp name="sec-ch-ua" elementType="Header">
+                  <stringProp name="Header.name">sec-ch-ua</stringProp>
+                  <stringProp name="Header.value">&quot;Google Chrome&quot;;v=&quot;141&quot;, &quot;Not?A_Brand&quot;;v=&quot;8&quot;, &quot;Chromium&quot;;v=&quot;141&quot;</stringProp>
+                </elementProp>
+                <elementProp name="sec-ch-ua-mobile" elementType="Header">
+                  <stringProp name="Header.name">sec-ch-ua-mobile</stringProp>
+                  <stringProp name="Header.value">?0</stringProp>
+                </elementProp>
+                <elementProp name="sec-ch-ua-platform" elementType="Header">
+                  <stringProp name="Header.name">sec-ch-ua-platform</stringProp>
+                  <stringProp name="Header.value">&quot;macOS&quot;</stringProp>
+                </elementProp>
+                <elementProp name="Content-Type" elementType="Header">
+                  <stringProp name="Header.name">Content-Type</stringProp>
+                  <stringProp name="Header.value">application/json</stringProp>
+                </elementProp>
+                <elementProp name="Accept-Encoding" elementType="Header">
+                  <stringProp name="Header.name">Accept-Encoding</stringProp>
+                  <stringProp name="Header.value">gzip, deflate, br, zstd</stringProp>
+                </elementProp>
+                <elementProp name="User-Agent" elementType="Header">
+                  <stringProp name="Header.name">User-Agent</stringProp>
+                  <stringProp name="Header.value">Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36</stringProp>
+                </elementProp>
+                <elementProp name="Sec-Fetch-Dest" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-Dest</stringProp>
+                  <stringProp name="Header.value">empty</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+          </hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="/api/auth-637" enabled="false">
+            <stringProp name="HTTPSampler.domain">s25-signup-ext-alb-114613775.ap-northeast-1.elb.amazonaws.com</stringProp>
+            <stringProp name="HTTPSampler.port">443</stringProp>
+            <stringProp name="HTTPSampler.protocol">https</stringProp>
+            <stringProp name="HTTPSampler.contentEncoding">utf-8</stringProp>
+            <stringProp name="HTTPSampler.path">/api/auth</stringProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="ユーザー定義変数">
+              <collectionProp name="Arguments.arguments"/>
+            </elementProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP ヘッダマネージャ" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="Sec-Fetch-Mode" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-Mode</stringProp>
+                  <stringProp name="Header.value">cors</stringProp>
+                </elementProp>
+                <elementProp name="Referer" elementType="Header">
+                  <stringProp name="Header.name">Referer</stringProp>
+                  <stringProp name="Header.value">https://s25-signup-ext-alb-114613775.ap-northeast-1.elb.amazonaws.com/signup/set_basic/1</stringProp>
+                </elementProp>
+                <elementProp name="Sec-Fetch-Site" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-Site</stringProp>
+                  <stringProp name="Header.value">same-origin</stringProp>
+                </elementProp>
+                <elementProp name="Accept-Language" elementType="Header">
+                  <stringProp name="Header.name">Accept-Language</stringProp>
+                  <stringProp name="Header.value">ja</stringProp>
+                </elementProp>
+                <elementProp name="Accept" elementType="Header">
+                  <stringProp name="Header.name">Accept</stringProp>
+                  <stringProp name="Header.value">*/*</stringProp>
+                </elementProp>
+                <elementProp name="X-From" elementType="Header">
+                  <stringProp name="Header.name">X-From</stringProp>
+                  <stringProp name="Header.value">https://s25-signup-ext-alb-114613775.ap-northeast-1.elb.amazonaws.com/signup/set_basic/1</stringProp>
+                </elementProp>
+                <elementProp name="sec-ch-ua" elementType="Header">
+                  <stringProp name="Header.name">sec-ch-ua</stringProp>
+                  <stringProp name="Header.value">&quot;Google Chrome&quot;;v=&quot;141&quot;, &quot;Not?A_Brand&quot;;v=&quot;8&quot;, &quot;Chromium&quot;;v=&quot;141&quot;</stringProp>
+                </elementProp>
+                <elementProp name="sec-ch-ua-mobile" elementType="Header">
+                  <stringProp name="Header.name">sec-ch-ua-mobile</stringProp>
+                  <stringProp name="Header.value">?0</stringProp>
+                </elementProp>
+                <elementProp name="sec-ch-ua-platform" elementType="Header">
+                  <stringProp name="Header.name">sec-ch-ua-platform</stringProp>
+                  <stringProp name="Header.value">&quot;macOS&quot;</stringProp>
+                </elementProp>
+                <elementProp name="Content-Type" elementType="Header">
+                  <stringProp name="Header.name">Content-Type</stringProp>
+                  <stringProp name="Header.value">application/json</stringProp>
+                </elementProp>
+                <elementProp name="Accept-Encoding" elementType="Header">
+                  <stringProp name="Header.name">Accept-Encoding</stringProp>
+                  <stringProp name="Header.value">gzip, deflate, br, zstd</stringProp>
+                </elementProp>
+                <elementProp name="User-Agent" elementType="Header">
+                  <stringProp name="Header.name">User-Agent</stringProp>
+                  <stringProp name="Header.value">Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36</stringProp>
+                </elementProp>
+                <elementProp name="Sec-Fetch-Dest" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-Dest</stringProp>
+                  <stringProp name="Header.value">empty</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+          </hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="/api/auth-658" enabled="false">
+            <stringProp name="HTTPSampler.domain">s25-signup-ext-alb-114613775.ap-northeast-1.elb.amazonaws.com</stringProp>
+            <stringProp name="HTTPSampler.port">443</stringProp>
+            <stringProp name="HTTPSampler.protocol">https</stringProp>
+            <stringProp name="HTTPSampler.contentEncoding">utf-8</stringProp>
+            <stringProp name="HTTPSampler.path">/api/auth</stringProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="ユーザー定義変数">
+              <collectionProp name="Arguments.arguments"/>
+            </elementProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP ヘッダマネージャ" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="Sec-Fetch-Mode" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-Mode</stringProp>
+                  <stringProp name="Header.value">cors</stringProp>
+                </elementProp>
+                <elementProp name="Referer" elementType="Header">
+                  <stringProp name="Header.name">Referer</stringProp>
+                  <stringProp name="Header.value">https://s25-signup-ext-alb-114613775.ap-northeast-1.elb.amazonaws.com/ekyc/upload</stringProp>
+                </elementProp>
+                <elementProp name="Sec-Fetch-Site" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-Site</stringProp>
+                  <stringProp name="Header.value">same-origin</stringProp>
+                </elementProp>
+                <elementProp name="Accept-Language" elementType="Header">
+                  <stringProp name="Header.name">Accept-Language</stringProp>
+                  <stringProp name="Header.value">ja</stringProp>
+                </elementProp>
+                <elementProp name="Accept" elementType="Header">
+                  <stringProp name="Header.name">Accept</stringProp>
+                  <stringProp name="Header.value">*/*</stringProp>
+                </elementProp>
+                <elementProp name="X-From" elementType="Header">
+                  <stringProp name="Header.name">X-From</stringProp>
+                  <stringProp name="Header.value">https://s25-signup-ext-alb-114613775.ap-northeast-1.elb.amazonaws.com/ekyc/upload</stringProp>
+                </elementProp>
+                <elementProp name="sec-ch-ua" elementType="Header">
+                  <stringProp name="Header.name">sec-ch-ua</stringProp>
+                  <stringProp name="Header.value">&quot;Google Chrome&quot;;v=&quot;141&quot;, &quot;Not?A_Brand&quot;;v=&quot;8&quot;, &quot;Chromium&quot;;v=&quot;141&quot;</stringProp>
+                </elementProp>
+                <elementProp name="sec-ch-ua-mobile" elementType="Header">
+                  <stringProp name="Header.name">sec-ch-ua-mobile</stringProp>
+                  <stringProp name="Header.value">?0</stringProp>
+                </elementProp>
+                <elementProp name="sec-ch-ua-platform" elementType="Header">
+                  <stringProp name="Header.name">sec-ch-ua-platform</stringProp>
+                  <stringProp name="Header.value">&quot;macOS&quot;</stringProp>
+                </elementProp>
+                <elementProp name="Content-Type" elementType="Header">
+                  <stringProp name="Header.name">Content-Type</stringProp>
+                  <stringProp name="Header.value">application/json</stringProp>
+                </elementProp>
+                <elementProp name="Accept-Encoding" elementType="Header">
+                  <stringProp name="Header.name">Accept-Encoding</stringProp>
+                  <stringProp name="Header.value">gzip, deflate, br, zstd</stringProp>
+                </elementProp>
+                <elementProp name="User-Agent" elementType="Header">
+                  <stringProp name="Header.name">User-Agent</stringProp>
+                  <stringProp name="Header.value">Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36</stringProp>
+                </elementProp>
+                <elementProp name="Sec-Fetch-Dest" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-Dest</stringProp>
+                  <stringProp name="Header.value">empty</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+          </hashTree>
+          <MailReaderSampler guiclass="MailReaderSamplerGui" testclass="MailReaderSampler" testname="Mail Reader Sampler" enabled="false">
+            <stringProp name="host_type">imaps</stringProp>
+            <stringProp name="folder">INBOX</stringProp>
+            <stringProp name="host">imap.gmail.com</stringProp>
+            <stringProp name="port">993</stringProp>
+            <stringProp name="username">adamasst01</stringProp>
+            <stringProp name="password">rsvwjbrcxalfndij</stringProp>
+            <intProp name="num_messages">-1</intProp>
+            <boolProp name="delete">false</boolProp>
+            <stringProp name="SMTPSampler.useSSL">true</stringProp>
+            <stringProp name="SMTPSampler.useStartTLS">false</stringProp>
+            <stringProp name="SMTPSampler.trustAllCerts">true</stringProp>
+            <stringProp name="SMTPSampler.enforceStartTLS">false</stringProp>
+            <stringProp name="SMTPSampler.useLocalTrustStore">false</stringProp>
+            <stringProp name="SMTPSampler.trustStoreToUse"></stringProp>
+            <stringProp name="SMTPSampler.tlsProtocols"></stringProp>
+          </MailReaderSampler>
+          <hashTree>
+            <JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="JSR223 Assertion" enabled="false">
+              <stringProp name="cacheKey">true</stringProp>
+              <stringProp name="filename"></stringProp>
+              <stringProp name="parameters"></stringProp>
+              <stringProp name="script">// 1. このスレッドが使用しているメールアドレス変数 &apos;email&apos; と期待する件名を取得
+def myEmail = vars.get(&quot;email&quot;); 
+def expectedText = &quot;SBI VCトレードにご登録いただき誠にありがとうございます。&quot;; 
+
+// 2. このサンプルの本文と件名を取得
+String emailBody = SampleResult.getResponseDataAsString();
+String subject = SampleResult.getSamplerData(); // Mail Reader Sampler の場合、Subjectがサンプラーデータに入っていることがあります
+
+// 3. 【自分のメール判定】本文に自分のメールアドレスが含まれているかをチェック
+if (!emailBody.contains(myEmail)) {
+    // 自分のメールアドレスを含まない場合は検証をスキップ
+    log.info(&quot;スキップしました: &quot; + SampleResult.getSampleLabel() + &quot; (自分のメールアドレス &quot; + myEmail + &quot; が含まれていません)&quot;);
+    return;
+}
+
+log.info(&quot;★検証対象の自分のメール: &quot; + SampleResult.getSampleLabel());
+
+// 4. 【期待するテキスト検証】メール本文に期待するテキストが含まれているか検証
+if (!emailBody.contains(expectedText)) {
+    log.warn(&quot;アサーション失敗: &apos;&quot; + expectedText + &quot;&apos; が見つかりません。&quot;);
+    
+    AssertionResult.setFailure(true);
+    AssertionResult.setFailureMessage(&quot;自分のメール (&quot; + myEmail + &quot;) の本文に &apos;&quot; + expectedText + &quot;&apos; が見つかりませんでした。&quot;);
+} else {
+    log.info(&quot;アサーション成功: &apos;&quot; + expectedText + &quot;&apos; が見つかりました。&quot;);
+}</stringProp>
+              <stringProp name="scriptLanguage">groovy</stringProp>
+            </JSR223Assertion>
+            <hashTree/>
+            <RegexExtractor guiclass="RegexExtractorGui" testclass="RegexExtractor" testname="正規表現抽出" enabled="false">
+              <stringProp name="RegexExtractor.useHeaders">false</stringProp>
+              <stringProp name="RegexExtractor.refname">passwordSetURL</stringProp>
+              <stringProp name="RegexExtractor.regex">/signup/set_password/(a-zA-Z0-9_\-]+={0,2})</stringProp>
+              <stringProp name="RegexExtractor.template">$1$</stringProp>
+              <stringProp name="RegexExtractor.default"></stringProp>
+              <boolProp name="RegexExtractor.default_empty_value">false</boolProp>
+              <stringProp name="RegexExtractor.match_number">1</stringProp>
+              <stringProp name="Sample.scope">all</stringProp>
+            </RegexExtractor>
+            <hashTree/>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="アサーション" enabled="false">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp name="477461232">SBI VCトレードにご登録いただき誠にありがとうございます。</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.custom_message"></stringProp>
+              <stringProp name="Assertion.test_field">Assertion.response_data</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">16</intProp>
+            </ResponseAssertion>
+            <hashTree/>
+            <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor" testname="JSR223 PostProcessor" enabled="false">
+              <stringProp name="cacheKey">true</stringProp>
+              <stringProp name="filename"></stringProp>
+              <stringProp name="parameters"></stringProp>
+              <stringProp name="script">// 1. このスレッドが使用しているメールアドレス変数 &apos;email&apos; を取得
+def myEmail = vars.get(&quot;email&quot;); 
+log.info(&quot;自分のメールアドレス (検索キー): &quot; + myEmail);
+
+// 2. 親サンプラー(Mail Reader Sampler)が取得した全メールのリストを取得
+def parentResult = prev;
+def subResults = parentResult.getSubResults();
+
+if (subResults == null || subResults.length == 0) {
+    log.error(&quot;エラー: メールが1通も見つかりませんでした。&quot;);
+    vars.put(&quot;passwordSetURL&quot;, &quot;NO_EMAIL_FOUND&quot;); 
+    // メールがなければ、後続のパスワード設定は必ず失敗するので、サンプラー自体を失敗とします
+    prev.setSuccessful(false); 
+    prev.setResponseMessage(&quot;メールが見つかりませんでした。検索キー: &quot; + myEmail);
+    return;
+}
+
+// 3. 全てのメールを逆順（最新から）にチェックし、自分のメールアドレスを含むメールを探す
+def targetEmailResult = null;
+for (int i = subResults.length - 1; i &gt;= 0; i--) {
+    def emailResult = subResults[i];
+    // メール本文全体を取得
+    String emailBody = emailResult.getResponseDataAsString();
+    
+    // 4. 【自分のメール特定ロジック】メール本文に自分のメールアドレスが含まれているかチェック
+    if (emailBody.contains(myEmail)) {
+        log.info(&quot;★自分のメールが見つかりました: &quot; + emailResult.getSampleLabel() + &quot; に自分のアドレス (&quot; + myEmail + &quot;) が含まれています。&quot;);
+        targetEmailResult = emailResult;
+        break; // 見つけたらすぐにループを終了（最新のものを優先）
+    }
+}
+
+// 5. 該当のメールが見つからなかった場合の処理
+if (targetEmailResult == null) {
+    log.error(&quot;エラー: 自分のメールアドレス (&quot; + myEmail + &quot;) を含むメールが見つかりませんでした。&quot;);
+    vars.put(&quot;passwordSetURL&quot;, &quot;EMAIL_NOT_FOUND&quot;);
+    prev.setSuccessful(false); 
+    prev.setResponseMessage(&quot;自分のメールアドレスを含むメールが見つかりませんでした。&quot;);
+    return;
+}
+
+// 6. 【トークン抽出】見つかったメールの本文を取得
+String emailBody = targetEmailResult.getResponseDataAsString();
+
+// 7. 【正規表現の修正】: URLセーフな文字（英数字、アンダーバー、ハイフン）と、末尾のイコール記号（=）を許容
+// URL: https://s25-signup-ext-alb-114613775.ap-northeast-1.elb.amazonaws.com/signup/set_password/6sJGseF3f8igTS2WNWTw2mNqpvnsRnSVIoCUpQ8IqtlK_qfVcnaOn-alz40wE3SKD7vHzM9amA6UdY61ZMVztTMuEKfnktenQZn8YprIoFtwprL7ZHf4R8RLg_GrPzmtfUhuFOb2bJnCEeEvSOFw-GIQDWiPRNhpwmyR7RB9WEiqGru-2ggaW4i7i8NHm7stB4MAZ3MSpZzKLXY=
+String regex = &quot;/signup/set_password/([a-zA-Z0-9_\\-]+={0,2})&quot;;
+
+// 7. 正規表現でマッチングを実行
+def matcher = (emailBody =~ regex);
+
+// 8. マッチした場合、JMeter変数に保存
+if (matcher.find()) {
+    // matcher.group(1) はキャプチャグループ（トークン）の部分
+    String extractedPath = matcher.group(1); 
+    
+    // &quot;passwordSetURL&quot; という名前のJMeter変数にトークン（パス）を保存
+    vars.put(&quot;passwordSetURL&quot;, extractedPath);
+    log.info(&quot;抽出成功: passwordSetURL = &quot; + extractedPath);
+} else {
+    log.error(&quot;エラー: 正規表現がメール本文にマッチしませんでした。Regex: &quot; + regex);
+    vars.put(&quot;passwordSetURL&quot;, &quot;TOKEN_NOT_FOUND&quot;);
+    prev.setSuccessful(false); 
+    prev.setResponseMessage(&quot;メール本文からパスワード設定トークンが見つかりませんでした。&quot;);
+}</stringProp>
+              <stringProp name="scriptLanguage">groovy</stringProp>
+            </JSR223PostProcessor>
+            <hashTree/>
+            <ConstantTimer guiclass="ConstantTimerGui" testclass="ConstantTimer" testname="定数タイマ" enabled="false">
+              <stringProp name="ConstantTimer.delay">10000</stringProp>
+            </ConstantTimer>
+            <hashTree/>
+          </hashTree>
+          <JSR223Sampler guiclass="TestBeanGUI" testclass="JSR223Sampler" testname="21_メール取得" enabled="false">
+            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="filename"></stringProp>
+            <stringProp name="parameters"></stringProp>
+            <stringProp name="script">// JSR223 Sampler (Groovy)
+
+import javax.mail.Session
+import javax.mail.Store
+import javax.mail.Folder
+import javax.mail.Message
+import javax.mail.search.SubjectTerm
+import javax.mail.internet.InternetAddress
+import java.util.concurrent.TimeUnit // 時間単位を扱うためにインポート
+
+// =========================================================
+// 調整可能なパラメータ
+// =========================================================
+def MAIL_HOST = &quot;imap.gmail.com&quot; 
+def MAIL_PORT = &quot;993&quot;           
+def PROTOCOL = &quot;imaps&quot;          
+def MAIL_FOLDER = &quot;INBOX&quot;       
+def USERNAME = &quot;adamasst01&quot;     
+def PASSWORD = &quot;rsvwjbrcxalfndij&quot; 
+
+// CSVから取得されるメールアドレス (宛先チェック用)
+def MY_EMAIL = vars.get(&quot;email&quot;) 
+def EXPECTED_SUBJECT_PREFIX = &quot;【SBI VCトレード】登録メールアドレスを確認してください&quot; 
+
+// 【ループ設定】
+def MAX_MESSAGES_TO_CHECK = 25  // 1回の試行でチェックする最大件数 (元の50に戻しました)
+def MAX_ATTEMPTS = 5            // 最大試行回数（50件チェックを最大5回繰り返す）
+def WAIT_TIME_MS = 1000        // 1回の試行でメールが見つからなかった場合の待機時間 (10秒)
+
+// =========================================================
+// 実行ロジック
+// =========================================================
+log.info(&quot;自分のメールアドレス (検索キー): &quot; + MY_EMAIL);
+log.info(&quot;期待する件名プレフィックス: &quot; + EXPECTED_SUBJECT_PREFIX);
+
+// 初期設定
+def props = new Properties()
+props.setProperty(&quot;mail.store.protocol&quot;, PROTOCOL)
+props.setProperty(&quot;mail.${PROTOCOL}.host&quot;, MAIL_HOST)
+props.setProperty(&quot;mail.${PROTOCOL}.port&quot;, MAIL_PORT)
+props.setProperty(&quot;mail.${PROTOCOL}.ssl.trust&quot;, &quot;*&quot;) 
+props.setProperty(&quot;mail.${PROTOCOL}.ssl.checkserveridentity&quot;, &quot;false&quot;)
+props.setProperty(&quot;mail.${PROTOCOL}.ssl.enable&quot;, &quot;true&quot;)
+props.setProperty(&quot;mail.${PROTOCOL}.starttls.enable&quot;, &quot;true&quot;)
+
+def session = Session.getDefaultInstance(props, null)
+def store = null
+def targetMessage = null
+def attempts = 0
+def extractedPath = null // 抽出したトークンを保持する変数を追加
+
+// 【外部ループ】: 目的のメールが見つかるか、最大試行回数に達するまで繰り返す
+// 注意: targetMessageの代わりに extractedPath が見つかるまでループするロジックに変更
+while (extractedPath == null &amp;&amp; attempts &lt; MAX_ATTEMPTS) {
+    attempts++
+    log.info(&quot;--- メール検索試行 #${attempts}/${MAX_ATTEMPTS} を開始 (最大 ${MAX_MESSAGES_TO_CHECK} 通をチェック) ---&quot;);
+
+    try {
+        // 接続とフォルダオープン (試行ごとに再接続)
+        store = session.getStore(PROTOCOL)
+        store.connect(MAIL_HOST, USERNAME, PASSWORD)
+        def folder = store.getFolder(MAIL_FOLDER)
+        folder.open(Folder.READ_ONLY)
+
+        def allMessages = folder.getMessages()
+        log.info(&quot;メールボックスに ${allMessages.length} 通のメールが見つかりました。&quot;);
+
+        // 内部ループ：最新のメールから順にチェック
+        def start = allMessages.length - 1 
+        def end = Math.max(0, allMessages.length - MAX_MESSAGES_TO_CHECK)
+
+        for (int i = start; i &gt;= end; i--) {
+            def message = allMessages[i]
+            def subject = message.getSubject()
+            def subjectMatch = (subject != null &amp;&amp; subject.startsWith(EXPECTED_SUBJECT_PREFIX))
+            def toAddresses = message.getRecipients(Message.RecipientType.TO)
+            def isToMyEmail = false
+            
+            if (toAddresses != null) {
+                for (address in toAddresses) {
+                    if (address.toString().contains(MY_EMAIL)) {
+                        isToMyEmail = true
+                        break
+                    }
+                }
+            }
+            
+            if (subjectMatch &amp;&amp; isToMyEmail) {
+                // targetMessage = message (Messageオブジェクトはそのまま保持)
+                log.info(&quot;★目的のメールを発見しました！(試行 #${attempts}、インデックス: #${i+1})&quot;)
+
+                // 【最重要修正点 A】: 接続が開いている間に、本文取得とトークン抽出を行う
+                def content = message.getContent().toString()
+                def regex = /\/signup\/set_password\/([a-zA-Z0-9_\-]+={0,2})/ 
+                def matcher = (content =~ regex)
+
+                if (matcher.find()) {
+                    extractedPath = matcher.group(1) // 外部ループを抜けるために、外部変数に格納
+                    log.info(&quot;抽出成功: passwordSetURL = &quot; + extractedPath)
+                    
+                    // JMeter変数に格納
+                    vars.put(&quot;passwordSetURL&quot;, extractedPath)
+                    
+                    // ループを抜けるために内部ループもここで終了
+                    break 
+                } else {
+                    log.warn(&quot;注意: メールは特定できましたが、トークンが見つかりませんでした。次のメールをチェックします。&quot;)
+                }
+            }
+        }
+        
+        // フォルダとストアをクローズ（tryブロックの最後に配置）
+        if (folder != null &amp;&amp; folder.isOpen()) {
+            folder.close(false) 
+        }
+
+    } catch (Exception e) {
+        log.error(&quot;メール接続または処理中に予期せぬエラーが発生しました: &quot; + e.getMessage(), e);
+        // エラーが発生した場合も、finallyでストアをクローズ
+    } finally {
+        if (store != null &amp;&amp; store.isConnected()) {
+            store.close()
+        }
+    }
+
+    // メールが見つからなかった場合、待機する
+    if (extractedPath == null &amp;&amp; attempts &lt; MAX_ATTEMPTS) {
+        log.info(&quot;目的のメールは最新 ${MAX_MESSAGES_TO_CHECK} 通の中に見つかりませんでした。${WAIT_TIME_MS / 1000} 秒待機して再試行します。&quot;)
+        TimeUnit.MILLISECONDS.sleep(WAIT_TIME_MS);
+    }
+}
+
+// =========================================================
+// 5. ループ後のサンプラー結果設定
+// =========================================================
+
+if (extractedPath != null) {
+    // 【最重要修正点 B】: 結果設定をループの後に移動
+    prev.setSuccessful(true)
+    prev.setResponseData(&quot;トークン抽出成功: ${extractedPath}&quot;, &quot;UTF-8&quot;)
+} else {
+    // 目的のメールが最大試行回数をもってしても見つからなかった場合
+    vars.put(&quot;passwordSetURL&quot;, &quot;EMAIL_NOT_FOUND_AFTER_MAX_ATTEMPTS&quot;)
+    log.error(&quot;致命的なエラー: 最大試行回数 (${MAX_ATTEMPTS} 回) を超えても目的のメールが見つかりませんでした。&quot;)
+    prev.setSuccessful(false)
+    prev.setResponseMessage(&quot;最大試行回数を超えても目的のメールが見つかりませんでした。&quot;)
+}</stringProp>
+            <stringProp name="scriptLanguage">groovy</stringProp>
+          </JSR223Sampler>
+          <hashTree/>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="31_ログイン確認/api/auth-632" enabled="false">
+            <stringProp name="HTTPSampler.domain">s25-signup-ext-alb-114613775.ap-northeast-1.elb.amazonaws.com</stringProp>
+            <stringProp name="HTTPSampler.port">443</stringProp>
+            <stringProp name="HTTPSampler.protocol">https</stringProp>
+            <stringProp name="HTTPSampler.contentEncoding">utf-8</stringProp>
+            <stringProp name="HTTPSampler.path">/api/auth</stringProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="ユーザー定義変数">
+              <collectionProp name="Arguments.arguments"/>
+            </elementProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP ヘッダマネージャ" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="Sec-Fetch-Mode" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-Mode</stringProp>
+                  <stringProp name="Header.value">cors</stringProp>
+                </elementProp>
+                <elementProp name="Referer" elementType="Header">
+                  <stringProp name="Header.name">Referer</stringProp>
+                  <stringProp name="Header.value">https://s25-signup-ext-alb-114613775.ap-northeast-1.elb.amazonaws.com/signup/verify_phone</stringProp>
+                </elementProp>
+                <elementProp name="Sec-Fetch-Site" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-Site</stringProp>
+                  <stringProp name="Header.value">same-origin</stringProp>
+                </elementProp>
+                <elementProp name="Accept-Language" elementType="Header">
+                  <stringProp name="Header.name">Accept-Language</stringProp>
+                  <stringProp name="Header.value">ja</stringProp>
+                </elementProp>
+                <elementProp name="Accept" elementType="Header">
+                  <stringProp name="Header.name">Accept</stringProp>
+                  <stringProp name="Header.value">*/*</stringProp>
+                </elementProp>
+                <elementProp name="X-From" elementType="Header">
+                  <stringProp name="Header.name">X-From</stringProp>
+                  <stringProp name="Header.value">https://s25-signup-ext-alb-114613775.ap-northeast-1.elb.amazonaws.com/signup/verify_phone</stringProp>
+                </elementProp>
+                <elementProp name="sec-ch-ua" elementType="Header">
+                  <stringProp name="Header.name">sec-ch-ua</stringProp>
+                  <stringProp name="Header.value">&quot;Google Chrome&quot;;v=&quot;141&quot;, &quot;Not?A_Brand&quot;;v=&quot;8&quot;, &quot;Chromium&quot;;v=&quot;141&quot;</stringProp>
+                </elementProp>
+                <elementProp name="sec-ch-ua-mobile" elementType="Header">
+                  <stringProp name="Header.name">sec-ch-ua-mobile</stringProp>
+                  <stringProp name="Header.value">?0</stringProp>
+                </elementProp>
+                <elementProp name="sec-ch-ua-platform" elementType="Header">
+                  <stringProp name="Header.name">sec-ch-ua-platform</stringProp>
+                  <stringProp name="Header.value">&quot;macOS&quot;</stringProp>
+                </elementProp>
+                <elementProp name="Content-Type" elementType="Header">
+                  <stringProp name="Header.name">Content-Type</stringProp>
+                  <stringProp name="Header.value">application/json</stringProp>
+                </elementProp>
+                <elementProp name="Accept-Encoding" elementType="Header">
+                  <stringProp name="Header.name">Accept-Encoding</stringProp>
+                  <stringProp name="Header.value">gzip, deflate, br, zstd</stringProp>
+                </elementProp>
+                <elementProp name="User-Agent" elementType="Header">
+                  <stringProp name="Header.name">User-Agent</stringProp>
+                  <stringProp name="Header.value">Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36</stringProp>
+                </elementProp>
+                <elementProp name="Sec-Fetch-Dest" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-Dest</stringProp>
+                  <stringProp name="Header.value">empty</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+          </hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="61_銀行情報/api/util/banks-653" enabled="false">
+            <stringProp name="TestPlan.comments">bankcodeは銀行名、qは支店名 クエリに?bankCode=0005&amp;q=060みたいになる</stringProp>
+            <stringProp name="HTTPSampler.contentEncoding">utf-8</stringProp>
+            <stringProp name="HTTPSampler.path">/api/util/banks</stringProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="ユーザー定義変数">
+              <collectionProp name="Arguments.arguments">
+                <elementProp name="bankCode" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                  <stringProp name="Argument.name">bankCode</stringProp>
+                  <stringProp name="Argument.value">${bankCode}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                  <boolProp name="HTTPArgument.use_equals">true</boolProp>
+                </elementProp>
+                <elementProp name="q" elementType="HTTPArgument">
+                  <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                  <stringProp name="Argument.name">q</stringProp>
+                  <stringProp name="Argument.value">${branchCode}</stringProp>
+                  <stringProp name="Argument.metadata">=</stringProp>
+                  <boolProp name="HTTPArgument.use_equals">true</boolProp>
+                </elementProp>
+              </collectionProp>
+            </elementProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP ヘッダマネージャ" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="Sec-Fetch-Mode" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-Mode</stringProp>
+                  <stringProp name="Header.value">cors</stringProp>
+                </elementProp>
+                <elementProp name="Referer" elementType="Header">
+                  <stringProp name="Header.name">Referer</stringProp>
+                  <stringProp name="Header.value">https://s25-signup-ext-alb-114613775.ap-northeast-1.elb.amazonaws.com/signup/set_basic/3</stringProp>
+                </elementProp>
+                <elementProp name="Sec-Fetch-Site" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-Site</stringProp>
+                  <stringProp name="Header.value">same-origin</stringProp>
+                </elementProp>
+                <elementProp name="Accept-Language" elementType="Header">
+                  <stringProp name="Header.name">Accept-Language</stringProp>
+                  <stringProp name="Header.value">ja</stringProp>
+                </elementProp>
+                <elementProp name="Accept" elementType="Header">
+                  <stringProp name="Header.name">Accept</stringProp>
+                  <stringProp name="Header.value">*/*</stringProp>
+                </elementProp>
+                <elementProp name="X-From" elementType="Header">
+                  <stringProp name="Header.name">X-From</stringProp>
+                  <stringProp name="Header.value">https://s25-signup-ext-alb-114613775.ap-northeast-1.elb.amazonaws.com/signup/set_basic/3</stringProp>
+                </elementProp>
+                <elementProp name="sec-ch-ua" elementType="Header">
+                  <stringProp name="Header.name">sec-ch-ua</stringProp>
+                  <stringProp name="Header.value">&quot;Google Chrome&quot;;v=&quot;141&quot;, &quot;Not?A_Brand&quot;;v=&quot;8&quot;, &quot;Chromium&quot;;v=&quot;141&quot;</stringProp>
+                </elementProp>
+                <elementProp name="sec-ch-ua-mobile" elementType="Header">
+                  <stringProp name="Header.name">sec-ch-ua-mobile</stringProp>
+                  <stringProp name="Header.value">?0</stringProp>
+                </elementProp>
+                <elementProp name="sec-ch-ua-platform" elementType="Header">
+                  <stringProp name="Header.name">sec-ch-ua-platform</stringProp>
+                  <stringProp name="Header.value">&quot;macOS&quot;</stringProp>
+                </elementProp>
+                <elementProp name="Content-Type" elementType="Header">
+                  <stringProp name="Header.name">Content-Type</stringProp>
+                  <stringProp name="Header.value">application/json</stringProp>
+                </elementProp>
+                <elementProp name="Accept-Encoding" elementType="Header">
+                  <stringProp name="Header.name">Accept-Encoding</stringProp>
+                  <stringProp name="Header.value">gzip, deflate, br, zstd</stringProp>
+                </elementProp>
+                <elementProp name="User-Agent" elementType="Header">
+                  <stringProp name="Header.name">User-Agent</stringProp>
+                  <stringProp name="Header.value">Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36</stringProp>
+                </elementProp>
+                <elementProp name="Sec-Fetch-Dest" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-Dest</stringProp>
+                  <stringProp name="Header.value">empty</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+          </hashTree>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="80_本人確認書類画面/ekyc/upload-672" enabled="false">
+            <stringProp name="HTTPSampler.path">/ekyc/upload</stringProp>
+            <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+            <stringProp name="HTTPSampler.method">GET</stringProp>
+            <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+            <boolProp name="HTTPSampler.postBodyRaw">false</boolProp>
+            <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="ユーザー定義変数">
+              <collectionProp name="Arguments.arguments"/>
+            </elementProp>
+          </HTTPSamplerProxy>
+          <hashTree>
+            <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP ヘッダマネージャ" enabled="true">
+              <collectionProp name="HeaderManager.headers">
+                <elementProp name="Sec-Fetch-Mode" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-Mode</stringProp>
+                  <stringProp name="Header.value">navigate</stringProp>
+                </elementProp>
+                <elementProp name="Sec-Fetch-Site" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-Site</stringProp>
+                  <stringProp name="Header.value">same-origin</stringProp>
+                </elementProp>
+                <elementProp name="Accept-Language" elementType="Header">
+                  <stringProp name="Header.name">Accept-Language</stringProp>
+                  <stringProp name="Header.value">ja</stringProp>
+                </elementProp>
+                <elementProp name="Sec-Fetch-User" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-User</stringProp>
+                  <stringProp name="Header.value">?1</stringProp>
+                </elementProp>
+                <elementProp name="Accept" elementType="Header">
+                  <stringProp name="Header.name">Accept</stringProp>
+                  <stringProp name="Header.value">text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7</stringProp>
+                </elementProp>
+                <elementProp name="sec-ch-ua" elementType="Header">
+                  <stringProp name="Header.name">sec-ch-ua</stringProp>
+                  <stringProp name="Header.value">&quot;Google Chrome&quot;;v=&quot;141&quot;, &quot;Not?A_Brand&quot;;v=&quot;8&quot;, &quot;Chromium&quot;;v=&quot;141&quot;</stringProp>
+                </elementProp>
+                <elementProp name="sec-ch-ua-mobile" elementType="Header">
+                  <stringProp name="Header.name">sec-ch-ua-mobile</stringProp>
+                  <stringProp name="Header.value">?0</stringProp>
+                </elementProp>
+                <elementProp name="sec-ch-ua-platform" elementType="Header">
+                  <stringProp name="Header.name">sec-ch-ua-platform</stringProp>
+                  <stringProp name="Header.value">&quot;macOS&quot;</stringProp>
+                </elementProp>
+                <elementProp name="Upgrade-Insecure-Requests" elementType="Header">
+                  <stringProp name="Header.name">Upgrade-Insecure-Requests</stringProp>
+                  <stringProp name="Header.value">1</stringProp>
+                </elementProp>
+                <elementProp name="Cache-Control" elementType="Header">
+                  <stringProp name="Header.name">Cache-Control</stringProp>
+                  <stringProp name="Header.value">max-age=0</stringProp>
+                </elementProp>
+                <elementProp name="Accept-Encoding" elementType="Header">
+                  <stringProp name="Header.name">Accept-Encoding</stringProp>
+                  <stringProp name="Header.value">gzip, deflate, br, zstd</stringProp>
+                </elementProp>
+                <elementProp name="User-Agent" elementType="Header">
+                  <stringProp name="Header.name">User-Agent</stringProp>
+                  <stringProp name="Header.value">Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36</stringProp>
+                </elementProp>
+                <elementProp name="Sec-Fetch-Dest" elementType="Header">
+                  <stringProp name="Header.name">Sec-Fetch-Dest</stringProp>
+                  <stringProp name="Header.value">document</stringProp>
+                </elementProp>
+              </collectionProp>
+            </HeaderManager>
+            <hashTree/>
+            <ResponseAssertion guiclass="AssertionGui" testclass="ResponseAssertion" testname="アサーション" enabled="true">
+              <collectionProp name="Asserion.test_strings">
+                <stringProp name="-1667639609">本人確認書類</stringProp>
+              </collectionProp>
+              <stringProp name="Assertion.custom_message"></stringProp>
+              <stringProp name="Assertion.test_field">Assertion.response_data</stringProp>
+              <boolProp name="Assertion.assume_success">false</boolProp>
+              <intProp name="Assertion.test_type">2</intProp>
+            </ResponseAssertion>
+            <hashTree/>
+          </hashTree>
+        </hashTree>
+        <CookieManager guiclass="CookiePanel" testclass="CookieManager" testname="HTTP クッキーマネージャ" enabled="true">
+          <collectionProp name="CookieManager.cookies"/>
+          <boolProp name="CookieManager.clearEachIteration">true</boolProp>
+          <boolProp name="CookieManager.controlledByThreadGroup">false</boolProp>
+        </CookieManager>
+        <hashTree/>
+        <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="CSV Data Set Config" enabled="true">
+          <stringProp name="filename">/home/jmeter/scenarios/csv_for_test/test_03_AccountOpening_Personal.csv</stringProp>
+          <stringProp name="fileEncoding"></stringProp>
+          <stringProp name="variableNames">email,givenNameAlphabet</stringProp>
+          <boolProp name="ignoreFirstLine">true</boolProp>
+          <stringProp name="delimiter">,</stringProp>
+          <boolProp name="quotedData">false</boolProp>
+          <boolProp name="recycle">true</boolProp>
+          <boolProp name="stopThread">false</boolProp>
+          <stringProp name="shareMode">shareMode.all</stringProp>
+        </CSVDataSet>
+        <hashTree/>
+        <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP リクエスト初期値設定" enabled="true">
+          <stringProp name="HTTPSampler.domain">s25-signup-ext-alb-114613775.ap-northeast-1.elb.amazonaws.com</stringProp>
+          <stringProp name="HTTPSampler.port">443</stringProp>
+          <stringProp name="HTTPSampler.protocol">https</stringProp>
+          <elementProp name="HTTPsampler.Arguments" elementType="Arguments" guiclass="HTTPArgumentsPanel" testclass="Arguments" testname="ユーザー定義変数">
+            <collectionProp name="Arguments.arguments"/>
+          </elementProp>
+          <stringProp name="HTTPSampler.implementation">HttpClient4</stringProp>
+        </ConfigTestElement>
+        <hashTree/>
+        <kg.apc.jmeter.timers.VariableThroughputTimer guiclass="kg.apc.jmeter.timers.VariableThroughputTimerGui" testclass="kg.apc.jmeter.timers.VariableThroughputTimer" testname="jp@gc - Throughput Shaping Timer">
+          <collectionProp name="load_profile">
+            <collectionProp name="602495264">
+              <stringProp name="48625">100</stringProp>
+              <stringProp name="48625">100</stringProp>
+              <stringProp name="1567">10</stringProp>
+            </collectionProp>
+          </collectionProp>
+        </kg.apc.jmeter.timers.VariableThroughputTimer>
+        <hashTree/>
+        <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="ユーザー定義変数" enabled="true">
+          <collectionProp name="Arguments.arguments">
+            <elementProp name="key" elementType="Argument">
+              <stringProp name="Argument.name">key</stringProp>
+              <stringProp name="Argument.value">https://s25-signup-ext-alb-114613775.ap-northeast-1.elb.amazonaws.com</stringProp>
+              <stringProp name="Argument.desc"></stringProp>
+              <stringProp name="Argument.metadata">=</stringProp>
+            </elementProp>
+          </collectionProp>
+        </Arguments>
+        <hashTree/>
+      </hashTree>
+      <ProxyControl guiclass="ProxyControlGui" testclass="ProxyControl" testname="HTTP プロキシサーバ" enabled="true">
+        <stringProp name="ProxyControlGui.port">8888</stringProp>
+        <collectionProp name="ProxyControlGui.exclude_list">
+          <stringProp name="-135020589">.*\.js.*</stringProp>
+          <stringProp name="106314546">.*\.gif.*</stringProp>
+          <stringProp name="117785042">.*\.svg.*</stringProp>
+          <stringProp name="102930865">.*\.css.*</stringProp>
+          <stringProp name="109294607">.*\.jpg.*</stringProp>
+          <stringProp name="577672968">.*\.woff2.*</stringProp>
+          <stringProp name="107991491">.*\.ico.*</stringProp>
+          <stringProp name="114776151">.*\.png.*</stringProp>
+          <stringProp name="-535554846">.*\.woff.*</stringProp>
+          <stringProp name="118648020">.*\.ttf.*</stringProp>
+          <stringProp name="1538321533">.*google-analytics\.com.*</stringProp>
+          <stringProp name="532514857">.*facebook\.com.*</stringProp>
+          <stringProp name="-361419982">.*adservice.*</stringProp>
+          <stringProp name="368328332">.*doubleclick\.net.*</stringProp>
+          <stringProp name="3845178">.*b99\.yahoo\.co\.jp.*</stringProp>
+          <stringProp name="-563208363">.*px\.ladsp\.com.*</stringProp>
+          <stringProp name="-1411883576">.*track\.robee\.tech.*</stringProp>
+          <stringProp name="835840564">.*analytics\.twitter\.com.*</stringProp>
+          <stringProp name="1195696562">.*t\.co.*</stringProp>
+          <stringProp name="-1036195360">.*cta-service-cms2\.hubspot\.com.*</stringProp>
+          <stringProp name="325059403">.*i\.smartnews-ads\.com.*</stringProp>
+          <stringProp name="903201950">.*apm\.yahoo\.co\.jp.*</stringProp>
+          <stringProp name="319500899">.*googletagmanager\.com.*</stringProp>
+          <stringProp name="-12697855">.*connect\.facebook\.net.*</stringProp>
+        </collectionProp>
+        <collectionProp name="ProxyControlGui.include_list">
+          <stringProp name="-668542969">.*stg-account\.sbivc\.co.jp.*</stringProp>
+        </collectionProp>
+        <boolProp name="ProxyControlGui.capture_http_headers">true</boolProp>
+        <intProp name="ProxyControlGui.grouping_mode">0</intProp>
+        <boolProp name="ProxyControlGui.add_assertion">false</boolProp>
+        <stringProp name="ProxyControlGui.sampler_type_name"></stringProp>
+        <boolProp name="ProxyControlGui.sampler_redirect_automatically">false</boolProp>
+        <boolProp name="ProxyControlGui.sampler_follow_redirects">true</boolProp>
+        <boolProp name="ProxyControlGui.use_keepalive">true</boolProp>
+        <boolProp name="ProxyControlGui.detect_graphql_request">true</boolProp>
+        <boolProp name="ProxyControlGui.sampler_download_images">false</boolProp>
+        <intProp name="ProxyControlGui.proxy_http_sampler_naming_mode">0</intProp>
+        <stringProp name="ProxyControlGui.default_encoding"></stringProp>
+        <stringProp name="ProxyControlGui.proxy_prefix_http_sampler_name"></stringProp>
+        <stringProp name="ProxyControlGui.proxy_pause_http_sampler"></stringProp>
+        <boolProp name="ProxyControlGui.notify_child_sl_filtered">false</boolProp>
+        <boolProp name="ProxyControlGui.regex_match">false</boolProp>
+        <stringProp name="ProxyControlGui.content_type_include"></stringProp>
+        <stringProp name="ProxyControlGui.content_type_exclude"></stringProp>
+      </ProxyControl>
+      <hashTree/>
+      <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="結果をツリーで表示" enabled="false">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <label>true</label>
+            <code>true</code>
+            <message>true</message>
+            <threadName>true</threadName>
+            <dataType>true</dataType>
+            <encoding>false</encoding>
+            <assertions>true</assertions>
+            <subresults>true</subresults>
+            <responseData>false</responseData>
+            <samplerData>false</samplerData>
+            <xml>false</xml>
+            <fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <bytes>true</bytes>
+            <sentBytes>true</sentBytes>
+            <url>true</url>
+            <threadCounts>true</threadCounts>
+            <idleTime>true</idleTime>
+            <connectTime>true</connectTime>
+          </value>
+        </objProp>
+        <stringProp name="filename"></stringProp>
+      </ResultCollector>
+      <hashTree/>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
