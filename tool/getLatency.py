@@ -2,7 +2,7 @@ import pandas as pd
 
 # JTLファイル（CSV形式）を読み込みます。
 # JMeterのJTLファイルは通常カンマ区切りです。
-file_name = '/Users/takada/Desktop/takada_personal/toiware_task/adamas_ST/results/1116/01_04_Login_Stress_2200_20251116212442_report/01_04_Login_Stress_2200_20251116212442.jtl'
+file_name = '/Users/takada/Desktop/takada_personal/toiware_task/adamas_ST/results/1118/00_03_AccountOpening_Personal_Load_1h3000_20251118133309.jtl'
 try:
     # ヘッダー行が存在するため、header=0 を指定
     df = pd.read_csv(file_name)

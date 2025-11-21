@@ -965,7 +965,7 @@ if (extractedPath != null) {
           <stringProp name="shareMode">shareMode.all</stringProp>
         </CSVDataSet>
         <hashTree/>
-        <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP リクエスト初期値設定" enabled="true">
+        <ConfigTestElement guiclass="HttpDefaultsGui" testclass="ConfigTestElement" testname="HTTP リクエスト初期値設定">
           <stringProp name="HTTPSampler.domain">s25-signup-ext-alb-114613775.ap-northeast-1.elb.amazonaws.com</stringProp>
           <stringProp name="HTTPSampler.port">443</stringProp>
           <stringProp name="HTTPSampler.protocol">https</stringProp>
@@ -985,7 +985,7 @@ if (extractedPath != null) {
           </collectionProp>
         </kg.apc.jmeter.timers.VariableThroughputTimer>
         <hashTree/>
-        <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="ユーザー定義変数" enabled="true">
+        <Arguments guiclass="ArgumentsPanel" testclass="Arguments" testname="ユーザー定義変数">
           <collectionProp name="Arguments.arguments">
             <elementProp name="key" elementType="Argument">
               <stringProp name="Argument.name">key</stringProp>

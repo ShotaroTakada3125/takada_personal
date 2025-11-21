@@ -8,7 +8,7 @@
 JMETER_BIN="/opt/homebrew/Cellar/jmeter/5.6.3/libexec/bin/jmeter"
 
 # .jtlファイルとレポート出力ディレクトリがあるベースディレクトリ
-BASE_DIR="/Users/takada/Desktop/takada_personal/toiware_task/adamas_ST/results/1117"
+BASE_DIR="/Users/takada/Desktop/takada_personal/toiware_task/adamas_ST/results/1120"
 
 # --- スクリプト本体 ---
 
@@ -40,7 +40,7 @@ do
     echo "⚙️ JMeterコマンドを実行中..."
     # 注意: jmeterコマンドのパスが正しいか確認してください。
     "${JMETER_BIN}" -g "${JTL_FILE}" -o "${REPORT_DIR}"
-     sort -t, -k1,1n ${JTL_FILE} | TZ='Asia/Tokyo' gawk -F, 'NR == 1 {print $1; next} {print strftime("%Y-%m-%d %H:%M:%S", $1/1000)}'
+    # sort -t, -k1,1n ${JTL_FILE} | TZ='Asia/Tokyo' gawk -F, 'NR == 1 {print $1; next} {print strftime("%Y-%m-%d %H:%M:%S", $1/1000)}'
     if [ $? -eq 0 ]; then
         echo "✅ レポート生成が完了しました: ${REPORT_DIR}/index.html"
     else
