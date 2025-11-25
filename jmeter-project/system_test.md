@@ -6,8 +6,9 @@
 3. [シナリオ作成 (Scenario Design)](#3-シナリオ作成-scenario-design)
 4. [負荷試験設定 (Load Configuration)](#4-負荷試験設定-load-configuration)
 5. [テスト実行 (Execution)](#5-テスト実行-execution)
-6. [Appendix A. プロキシとHTTPS証明書の設定詳細](#appendix-a-プロキシとhttps証明書の設定詳細)
-7. [Appendix B. メール取得機能 (IMAP)](#appendix-b-メール取得機能-imap)
+6. [レポート解析 (Result Analysis)](#6-レポート解析-result-analysis)
+7. [Appendix A. プロキシとHTTPS証明書の設定詳細](#appendix-a-プロキシとhttps証明書の設定詳細)
+8. [Appendix B. メール取得機能 (IMAP)](#appendix-b-メール取得機能-imap)
 
 ## 1. はじめに
 本ドキュメントは、負荷試験におけるJMeterのセットアップ、シナリオ作成、および実行手順をまとめたものである。
@@ -349,6 +350,56 @@ jmeter -n -t scenario.jmx -l result.jtl -e -o report_folder -Jthread_num=10 -Jra
 
 ---
 
+## 6. レポート解析 (Result Analysis)
+手順5で生成されたレポートフォルダ内の index.html をブラウザで開くと、詳細なグラフレポートが確認できる。 ここでは、性能評価において特に注目すべき指標について解説する。
+
+### 6-1. Dashboard (概要) の見方
+
+トップページにある（Dashboard）にある Statistics テーブルは、テスト全体の集計結果である。
+
+| 項目 | 日本語訳 | 説明・評価ポイント |
+| :--- | :--- | :--- |
+| **Executions** | | |
+| Samples | サンプル数 | リクエストの総数。シナリオ通りの負荷がかかったかの確認。 |
+| FAIL | エラー数 | 失敗したリクエスト数。 |
+| Error % | エラー率 | 全体に対する失敗の割合。 |
+| **Response Times (ms)** | 応答時間 | サーバーがリクエストを受け取ってから応答を返すまでの時間。 |
+| Average | 平均 | 全体の平均値。外れ値（極端に遅いリクエスト）の影響を受けやすい。 |
+| **90th / 95th / 99th pct** | パーセンタイル | 例: 90th pctが 2000ms なら、「全アクセスの90%は2秒以内に完了した」ことを意味する。<br>一部の遅延を除いた実質的な体感速度を表す。 |
+| Max | 最大値 | 最も遅かったリクエストの時間。スパイク（一時的な詰まり）の有無を確認する。 |
+| Transactions/s | スループット | 1秒間に処理されたリクエスト数 (RPS)。<br>目標とする負荷（例: 100 RPS）が出ているか確認する。 |
+
+![statics](./docs/images/report_dashboard_statics.png)
+
+### 6-2. 重要なグラフ (Charts)
+
+左メニューの `Charts` から、時間の経過に伴う性能変化を確認する。
+
+#### 1. Response Time Over Time (応答時間の推移)
+* **場所:** `Charts` -> `Over Time` -> `Response Time Over Time`
+* **見るべきポイント:**
+    * テスト後半にかけてグラフが右肩上がりになっていないか？（メモリリークやDB詰まりの兆候）
+    * 特定の時間帯にスパイク（急激な跳ね上がり）がないか？（GC発生やAuto Scalingの遅れなど）
+
+![response time](./docs/images/report_charts_responsetime.png)
+
+#### 2. Transactions Per Second (スループットの推移)
+* **場所:** `Charts` -> `Throughput` -> `Transactions Per Second`
+* **見るべきポイント:**
+    * 設定した負荷（RPS）通りにリクエストが送信され、処理されているか。
+    * 応答時間の悪化と共にスループットが低下していないか（システム限界の到達）。
+
+![Throughput Transactions](./docs/images/report_charts_transactionsPS.png)
+
+#### 3. Active Threads Over Time (同時接続数の推移)
+* **場所:** `Charts` -> `Over Time` -> `Active Threads Over Time`
+* **見るべきポイント:**
+    * 設定したスレッド数通りに推移しているか。
+    * エラー発生時にスレッドが異常終了して減っていないか。
+
+![Active Threads over time](./docs/images/report_charts_activeThreads.png)
+
+---
 ## Appendix A. プロキシとHTTPS証明書の設定詳細
 
 JMeterでHTTPSサイト（暗号化された通信）をキャプチャするためには、JMeterが発行する「自己署名証明書」をPCに信頼させる必要がある。
@@ -402,7 +453,6 @@ Chromeは、OS（Mac）のキーチェーン設定を参照する。
 
 * **Q. "Your connection is not private" エラーが消えない**
   * **A.** 証明書の有効期限（7日）が切れている可能性がある。JMeterのbinフォルダにある `crt` ファイルと `proxyserver.jks` を削除し、JMeterを再起動してプロキシを開始（再生成）した後、再度インストール手順を行う。
-
 
 ---
 
