@@ -498,11 +498,11 @@ sudo systemctl restart jmeter-server.service
 
 ---
 
-## 5. 分散テスト環境の構築 (AWS EC2)
+## 7. 分散テスト環境の構築 (AWS EC2)
 本章では、大規模な負荷試験を実施するためにAWS EC2上にJMeter実行環境（分散構成）を構築する手順を記述する。
 なお、AWSインフラ自体の構築作業はインフラチームとの連携が必要となる。
 
-### 5-1. 概要
+### 7-1. 概要
 単一サーバで十分に負荷がかけられない場合、複数サーバを立ち上げて分散実行させる必要がある。
 以下表の役割のインスタンスを立ち上げる。
 
@@ -512,16 +512,16 @@ sudo systemctl restart jmeter-server.service
 | **Worker** | N台 | 実際に負荷を生成する実行サーバ。<br>※目安: 1〜5台 (負荷量に応じて調整) |
 
 
-### 5-2. AWS環境整備（インフラチーム作業）
+### 7-2. AWS環境整備（インフラチーム作業）
 
-#### 5-2-1. EC2 インスタンス作成
+#### 7-2-1. EC2 インスタンス作成
 * **構成:** Controller 1台、Worker N台
 * **セキュリティグループ:**
     * JMeter用のセキュリティグループを設定
     * Controller-Worker間の全トラフィック（インバウンド/アウトバウンド）を許可（RMI通信のため）。
 * **OS:** Rocky Linux (またはプロジェクト指定の標準OS)
 
-#### 5-2-2. S3バケットの作成・IAM設定
+#### 7-2-2. S3バケットの作成・IAM設定
 シナリオファイルや結果ログの転送には、セキュリティポリシー上 S3 を経由する。
 * **用途:**
     * ローカルPC → S3 → Controller (シナリオ配置)
@@ -535,11 +535,11 @@ sudo systemctl restart jmeter-server.service
      - Jmeter稼働サーバ(EC2) <-> テスト対象サーバ(今回の場合は、ECSに繋がるALB)
 
 
-#### 5-2-3. firewalldの設定
+#### 7-2-3. firewalldの設定
 構築したEC2サーバはrocky linuxをカスタムしたvctルール準拠OS であるが、こちらのセキュリティ要件でfirewalldがONになっているため、無効にする必要がある。  
 参考：https://toiware-dev.slack.com/archives/C07QJNKGPV3/p1761541772887029?thread_ts=1759726698.395539&cid=C07QJNKGPV3
 
-### 5-3. セットアップスクリプトの準備
+### 7-3. セットアップスクリプトの準備
 
 環境構築を効率化・冪等化するため、セットアップスクリプト(`setup_jmeter.sh`)を使用する。
 
@@ -553,11 +553,11 @@ sudo systemctl restart jmeter-server.service
 #### setup_jmeter.sh の内容
 同じディレクトリに格納している。確認すること。
 
-### 5-4. 各種サーバのセットアップ手順
+### 7-4. 各種サーバのセットアップ手順
 
 AWSコンソールからSSM等でログインし、**ルートユーザ (`sudo su -`)** で作業を行う。
 
-#### 5-4-1. 共通手順 (Controller / Worker)
+#### 7-4-1. 共通手順 (Controller / Worker)
 1. **スクリプトの作成:**
     `vi setup_jmeter.sh` でファイルを作成し、`setup_jmeter.sh(別ファイル格納)`のスクリプト内容をコピペして保存する。
 2. **実行権限の付与:**
@@ -565,7 +565,7 @@ AWSコンソールからSSM等でログインし、**ルートユーザ (`sudo s
     chmod 700 setup_jmeter.sh
     ```
 
-#### 5-4-2. Controllerサーバの構築
+#### 7-4-2. Controllerサーバの構築
 1. **スクリプト実行:**
     ```bash
     ./setup_jmeter.sh
@@ -586,7 +586,7 @@ AWSコンソールからSSM等でログインし、**ルートユーザ (`sudo s
 
     ※ヒープの値は、インスタンスのメモリにより適宜調整する
 
-#### 5-4-3. Workerサーバの構築
+#### 7-4-3. Workerサーバの構築
 1. **スクリプト実行 (引数あり):**
     ```bash
     ./setup_jmeter.sh --worker
@@ -606,7 +606,7 @@ AWSコンソールからSSM等でログインし、**ルートユーザ (`sudo s
     systemctl restart jmeter-server.service
     ```
 
-### 5-5. 運用・補足情報
+### 7-5. 運用・補足情報
 
 * **シナリオ配置:**
     * `.jmx` ファイルは **Controllerサーバ** に配置する。
