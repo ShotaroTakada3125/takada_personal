@@ -8,7 +8,7 @@
 5. [テスト実行 (Execution)](#5-テスト実行-execution)
 6. [レポート解析 (Result Analysis)](#6-レポート解析-result-analysis)
 7. [Appendix A. プロキシとHTTPS証明書の設定詳細](#appendix-a-プロキシとhttps証明書の設定詳細)
-8. [Appendix B. メール取得機能 (IMAP)](#appendix-b-メール取得機能-imap)
+8. [Appendix B. メール取得機能 (Mail Reader Sampler)](#appendix-b-メール取得機能-mail-reader-sampler)
 
 ## 1. はじめに
 本ドキュメントは、負荷試験におけるJMeterのセットアップ、シナリオ作成、および実行手順をまとめたものである。
@@ -20,6 +20,10 @@ Apache JMeterは、Webアプリケーション等のパフォーマンス測定�
     * **負荷生成:** 静的・動的なリソース（Web, API, DB等）に対し、大量の同時アクセスをシミュレートする。
     * **性能測定:** スループット（RPS）、応答時間（Latency）、エラー率などを計測する。
     * **拡張性:** プラグインにより、機能やグラフ表示を拡張可能。
+
+### 1-2. 負荷試験のゴール設定 (SLO/SLA)
+シナリオ作成を開始する前に、必ず「何をもって試験合格とするか」を定量的に定義する。
+各プロジェクトで確認すること。
 
 ## 2. 環境構築 (Setup)
 
@@ -35,8 +39,10 @@ Apache JMeterは、Webアプリケーション等のパフォーマンス測定�
 brew install jmeter
 ```
 
+> **Note:** Windowsの場合は公式サイトからダウンロードすること。[（参考）](https://ptune.jp/tech/jmeter-installation-and-initial-setup/)
+
 3. **日本語環境の設定（恒久対応）**
-   起動スクリプトを直接編集し、JMeter起動時の言語設定を強制的に日本語にする。
+   起動スクリプトを直接編集し、JMeter起動時の言語設定を恒久的に日本語にする。
 
    JMeterのbinディレクトリへ移動し、起動スクリプト(`jmeter`)をテキストエディタで開き、以下のように修正する。
 
@@ -57,6 +63,9 @@ cd $(brew --prefix jmeter)/libexec/bin
 
 
 ### 2-2. プラグインの導入
+既存の機能では時間経過ごとに細かくスループット(RequestPerSecond)を設定できない。  
+`Throughput Shaping Timer`というプラグインの導入手順を示す。  
+
 1. [Throughput Shaping Timer ダウンロードページ](https://jmeter-plugins.org/?search=jpgc-tst)へアクセスし、最新のzipファイルをダウンロードする。
 
 ![Throughput Shaping Timerのダウンロードサイト](./docs/images/0-6.png)
@@ -81,11 +90,16 @@ cp ext/*.jar $(brew --prefix jmeter)/libexec/lib/ext/
 5. **GUI設定**
    `オプション` → `ルック＆フィール` から **System** を選択する（推奨）。
 
-![ルック＆フィール設定](./docs/images/0-11.png)
+![ルック＆フィール設定](./docs/images/GUI_setting.png)
 
 ---
 
 ## 3. シナリオ作成 (Scenario Design)
+
+本章では、JMeterで負荷試験をするために、シナリオを作成する方法を記述する。  
+なお、JMeterのシナリオファイル(.jmx)はXML形式であり、競合時のマージが困難のためバージョン管理(Git)が推奨される。
+
+> **Warning:** レポートファイル（.jtl, .html）やログファイルは容量が大きくなるため、管理の場合は`.gitignore` に追加するなど対応すること。
 
 ### 3-1. プロキシレコーディング (HTTP Proxy Server)
 
@@ -145,17 +159,33 @@ cp ext/*.jar $(brew --prefix jmeter)/libexec/lib/ext/
 
 ![動作確認](./docs/images/1-13.png)
 
-### 3-2. アサーション (検証)
+### 3-2. アサーションと画面表示確認 (検証)
 
+設定したシナリオにより想定された挙動をしているか、レスポンスや画面を確認する。
+
+#### アサーション
 レスポンスが正しく返ってきているか、HTTPステータスコードだけでなく中身で検証する。
 
 1. 検証したいリクエストに対し `アサーション` -> `アサーション` を追加する。
 
 ![アサーション追加](./docs/images/2-1.png)
 
-2. 「テストするパターン」に、成功時に必ず含まれるユニークな文字列（例: "ログインしました"）を設定する。
+2. 「テストするパターン」に、成功時に必ず含まれるユニークな文字列（例: "ログインしました"）や固有の値（アカウント名やidなど）を設定する。
+
+![アサーション設定例](./docs/images/assertion.png)
+
+アサーションによる失敗例
 
 ![パターン設定](./docs/images/2-4.png)
+
+#### 実際の画面表示の確認 (HTML Debugging)
+JMeterはブラウザではないため、JavaScriptを描画しない。「結果をツリーで表示」リスナーで、以下の手順でHTMLを確認する。
+
+1.  リスナー内の `Response Data` タブを選択する。
+2.  下部のプルダウンメニューから `Text` ではなく **`HTML (download resources)`** を選択する。
+3.  これにより、画像やCSSを含めた「ユーザーが見る実際の画面」に近い状態でレンダリング結果を確認できる。
+
+![HTML表示](./docs/images/display_HTML.png)
 
 ### 3-3. 動的パラメータの処理 (Correlation)
 
@@ -178,8 +208,6 @@ cp ext/*.jar $(brew --prefix jmeter)/libexec/lib/ext/
    | 正規表現 | `wid=(.*?)"` | `()`の中身が抽出される |
    | テンプレート | `$1$` | |
 
-   > **Note:** 正規表現はHTML構造の変化に弱いため、可能な限り **CSS Selector Extractor** の使用を推奨する。
-
 3. **変数の利用**
    抽出した値を使用するリクエストのパラメータに `${変数名}` の形式で記述する。
 
@@ -194,8 +222,11 @@ cp ext/*.jar $(brew --prefix jmeter)/libexec/lib/ext/
 
 ユーザーIDやパスワードなど、テストデータを外部ファイルから読み込む。
 
+> **Warning:** 顧客の個人情報など機密情報を使用する場合は、`.gitignore`などでGit管理対象外にすること
+
 1. **CSVファイルの準備**
-   `src/data/user.csv` などを準備する。
+   読み込ませたいデータが入ったcsvファイルを準備する。
+
 2. **CSV Data Set Configの設定**
    スレッドグループに `設定エレメント` -> `CSV Data Set Config` を追加する。
 
@@ -203,7 +234,7 @@ cp ext/*.jar $(brew --prefix jmeter)/libexec/lib/ext/
 
     | 項目 | 設定内容 | 設定例 |
     | :--- | :--- | :--- |
-    | Filename | 作成したCSVファイルのパスを入力する | user.csv |
+    | Filename | 作成したCSVファイルのパスを入力する。<br>チーム間のディレクトリ構成を統一するためシナリオファイル(.jmx)からの相対パスで記述することを推奨する。 |  |
     | File encoding | ファイルのエンコーディングと一致 | UTF-8 |
     | Variable Names | 参照名をカンマ区切りで記載。Csvファイル内に記載の場合は空白 | |
     | Ignore first line (CSV) | ヘッダ行を除外するかどうか | True or False |
@@ -212,11 +243,13 @@ cp ext/*.jar $(brew --prefix jmeter)/libexec/lib/ext/
     | Recycle on EOF? | 全行利用した後に再利用するかどうか | True or False |
     | Stop thread EOF | 再利用しない場合、スレッドを停止させるか | True or False |
     | Sharing Mode | 複数のスレッド間でファイルを共有する（通常はこのままでOK）。 | All threads |
+
 3. **設定した変数の利用**
     CSV Data Set Configで定義した変数をリクエストサンプラー内で使用する。
 
     1. データを使いたいHTTPリクエストサンプラーを開く。
     2. データ入力欄の値を以下の形式で入力する。
+    入力例  
     ```
     ${login_id}, ${login_pass}
     ```
@@ -227,9 +260,10 @@ cp ext/*.jar $(brew --prefix jmeter)/libexec/lib/ext/
 Webサイトによっては、セキュリティ対策（CSRF対策など）として Referer ヘッダのチェックを行っている場合がある。
 プロキシ記録時に自動で追加されることもあるが、手動で設定が必要な場合は以下の手順で行う。
 
-1. HTTPヘッダマネージャの追加 スレッドグループ（または特定のリクエスト）配下に 設定エレメント -> HTTPヘッダマネージャ を追加する。
-2. Refererの追加 [追加] ボタンを押し、名前に Referer、値に 遷移元のURL を入力する。
+1. HTTPヘッダマネージャの追加 スレッドグループ（または特定のリクエスト）配下に 設定エレメント -> HTTPヘッダマネージャ が存在することを確認する。なければ追加する。
+2. Refererの名前に Referer、値に 遷移元のURL を入力する。
 
+![リファラ設定](./docs/images/Referer.png)
 
 ### 3-6. シナリオ動作検証とトラブルシューティング
 シナリオ作成後、意図した通りに画面遷移（リクエスト）が行われない場合は、以下の観点で調査を行う。
@@ -256,14 +290,16 @@ Webサイトによっては、セキュリティ対策（CSRF対策など）と�
 
 負荷の基本量を設定する。
 
-![スレッドグループ設定](./docs/images/5-2.png)
-
 * **スレッド数:** 同時接続ユーザー数に相当。
 * **Ramp-up期間:** 全スレッドが起動するまでの時間。
 * **ループ回数:** 各スレッドがシナリオ実行を繰り返す回数の指定。テスト期間中回し続ける場合は「無限」にチェックする。
 
+![スレッドグループ設定](./docs/images/5-2.png)
+
+
 ### 4-2. エラー処理
 負荷試験中にエラーが発生した場合の挙動を以下の表を参考に設定する。
+
 | 項目 | 設定内容 |
 | :--- | :--- |
 | 続行 | エラーを気にせずテストを続行する |
@@ -315,7 +351,29 @@ RPS（1秒あたりのリクエスト数）を固定したい場合に使用す�
 
 > **Warning:** 分散環境(=workerサーバ複数台)での実行の場合、それぞれのworkerサーバでシナリオ実行がされるため、負荷対象サーバへの負荷は`設定したRPS` * `workerサーバの数`となってしまうことに注意
 
-### 4-5. 本番実行前の準備
+3. **スレッド数の再調整**
+    `Throughput Shaping Timer` (TST) で目標RPSを設定しても、**スレッド数 (N)** が不足していると、想定された負荷をかけられない。テスト実行後、結果に基づいてスレッド数を再調整する必要がある。
+
+   > **リトルの法則 (Little's Law)**
+    > 性能テストにおける適切な同時実行スレッド数 (N) は、以下の式で求められる。
+    > $$N \approx RPS \times T$$
+    > ここで、**RPS** は目標とする1秒あたりのリクエスト数 (Throughput)、**T** はシナリオ1ループあたりの**合計応答時間**（秒）である。
+    >
+    > *T* は、シナリオの平均応答時間（Think Timeを含む）を参考に算出する。この N の値よりスレッド数が小さすぎると、TSTが設定した目標RPSを達成できない。
+
+### 4-5. スレッド数の再調整とJMeterの負荷対策
+
+負荷を高くするためにスレッド数を調整する際、JMeter自身がボトルネックにならないよう注意が必要である。
+
+* **JMeterサーバーの負荷確認:**
+  スレッド数Nを大きくすると、JMeterを起動しているサーバー（クライアントマシン）自体の負荷（CPU使用率、メモリ使用率）が高くなる。
+
+* **負荷増強のための対応:**
+  上記のリソース確認の結果、単一のJMeterサーバーでは目標とする負荷を達成できない場合、以下の対応が必要になる。
+  1. **スケールアップ:** JMeterサーバーのCPUやメモリを増強する。
+  2. **スケールアウト (分散環境の構築):** JMeterの**分散環境機能**（Controller-Worker構成）を利用し、複数のマシンで負荷を分担して生成する。この機能を利用することで、単一サーバーの限界を超えた大規模な負荷試験が可能となる。
+
+### 4-6. 本番実行前の準備
 
 1. **リスナーの無効化**
    GUI実行用のリスナー（結果をツリーで表示など）はメモリを大量に消費するため、全て **無効化** または **削除** する。
@@ -333,6 +391,7 @@ RPS（1秒あたりのリクエスト数）を固定したい場合に使用す�
 ## 5. テスト実行 (Execution)
 
 負荷試験は必ずCLI（Non-GUIモード）で実行する。
+高負荷をかける際は、シナリオ内のリスナーを全て無効化する。
 
 ### 5-1. 実行コマンド
 
@@ -346,6 +405,43 @@ RPS（1秒あたりのリクエスト数）を固定したい場合に使用す�
 
 jmeter -n -t scenario.jmx -l result.jtl -e -o report_folder -Jthread_num=10 -Jramp_up=60
 ```
+
+### 5-2. JMeter自体のトラブルシューティング
+
+負荷試験実行中にJMeterがフリーズする、または強制終了する場合、以下の要因を確認する。
+
+#### OutOfMemoryError: Java heap space
+JMeterはJavaアプリケーションであり、デフォルトのメモリ設定（ヒープサイズ）は低く（例: 1GB）設定されていることが多い。高負荷時にメモリ不足で落ちる場合は、ヒープサイズを拡張する。
+
+**対応手順 (ローカル(CLI)実行時):**
+環境変数 `JVM_ARGS` でヒープサイズを指定して実行する。
+
+```bash
+# 例: 最小4GB、最大4GBのヒープを割り当てる
+JVM_ARGS="-Xms4g -Xmx4g" jmeter -n -t scenario.jmx ...
+```
+
+**Linuxサーバー(worker)でのメモリ設定手順（systemd利用時）**
+分散環境のワーカーサーバー（jmeter-server）を サーバー常駐(systemd) でサービス化している場合、コマンドライン引数ではなく、ユニットファイルでの環境変数設定が必要となる。
+
+1. ユニットファイルを開く。
+```bash
+sudo vim /etc/systemd/system/jmeter-server.service
+```
+2. [Service] セクションに HEAP 環境変数を追記する。
+```
+# ... (既存の設定)
+
+# メモリ割り当て設定 (Environment="HEAP=-Xms<サイズ> -Xmx<サイズ>")
+# 例: c6a.xlarge (Mem 8GiB) の場合
+Environment="HEAP=-Xms6g -Xmx6g"
+```
+3. 設定を反映し、サービスを再起動する。
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart jmeter-server.service
+```
+
 
 
 ---
@@ -456,20 +552,96 @@ Chromeは、OS（Mac）のキーチェーン設定を参照する。
 
 ---
 
-## Appendix B. メール取得機能 (IMAP)
+## Appendix B. メール取得機能 (Mail Reader Sampler)
 
-メール認証などのフローが必要な場合、`JSR223 Sampler` を使用してIMAP接続を行う。
+会員登録やパスワードリセットなど、メールで送られてくる「認証コード」や「URL」をテスト内で取得する場合、JMeter標準の **Mail Reader Sampler** を使用する。
 
-1. **JSR223 Samplerの追加**
-   言語に `groovy` を選択する。
+### B-1. 前提条件: Googleアカウントの設定 (Gmailの場合)
+通常のGmailパスワードでは、セキュリティ設定（2段階認証など）によりIMAP接続が拒否される場合が多い。必ず **アプリパスワード** を生成して使用すること。
 
-![Sampler追加](./docs/images/mail_2-1-2.png)
+1. Googleアカウント管理画面へアクセスする。
+2. セキュリティ設定から「アプリパスワード」を生成する。
+   * 参考: [アプリ パスワードでログインする - Google アカウント ヘルプ](https://support.google.com/accounts/answer/185833)
+3. 生成された16桁のパスワードを控えておく（これがJMeter設定時のパスワードになる）。
 
-2. **ライブラリの確認**
-   `javax.mail.jar` がlib配下に存在することを確認する。
+### B-2. メールサーバー接続設定 (Troubleshooting)
+接続時に `No appropriate protocol` エラーが出る場合、JMeterが古い暗号化方式を使おうとしている可能性がある。以下の設定を行う。
 
-3. **スクリプトの実装**
-   Gmail等のIMAPサーバーへ接続し、件名や宛先でメールを検索するスクリプトを記述する。
-   (参考: `Mail Reader Sampler` を使う方法もあるが、柔軟な検索にはGroovyスクリプトが推奨される)
+1. JMeterの `bin` ディレクトリにある `system.properties` をエディタで開く。
+2. 末尾に以下の行を追加して保存し、JMeterを再起動する。
+   ```properties
+   mail.imaps.ssl.protocols=TLSv1.2 TLSv1.3
+    ```
+### B-3. Mail Reader Sampler の設定手順
+
+1. **サンプラーの追加**
+   スレッドグループに対し、`サンプラー` -> `Mail Reader Sampler` を追加する。
 
 ![Mail Reader設定参考](./docs/images/mail_ref1-1.png)
+
+2. **接続情報の入力**
+   Gmailを受信する場合の標準的な設定は以下の通り。
+
+   | 項目 | 設定値 | 備考 |
+   | :--- | :--- | :--- |
+   | Protocol | `imaps` | 安全な接続(SSL)を使用 |
+   | Server Host | `imap.gmail.com` | |
+   | Port | `993` | |
+   | Username | `your_email@gmail.com` | テスト用アドレス |
+   | Password | `${__P(mail_pass)}` | **手順B-1で取得したアプリパスワード** |
+   | Folder | `INBOX` | 受信トレイ |
+   | Number of messages | `1` | 最新の1件のみ取得 |
+
+> **Note:** `${__P(mail_pass)}`については実行時にコマンドライン引数 -Jmail_pass=アプリパスワード で渡すこと
+
+3. **セキュリティ設定**
+   * 「Enforce StartTLS」はチェック不要（imapsプロトコルを使用するため）。
+   * 「Trust All Certificates」にはチェックを入れる（証明書エラー回避のため）。
+
+### B-4. メール本文からのデータ抽出
+
+メール本文から「認証コード」などを抜き出すには、後処理（PostProcessor）を使用する。
+
+#### 方法A: 正規表現抽出（推奨・簡単）
+
+1. Mail Reader Sampler の子要素に `後処理` -> `正規表現抽出` を追加する。
+2. 以下の例を参考に設定する。
+   * **Apply to:** Main sample only
+   * **Field to check:** Body
+   * **正規表現:** `コード: (\d{6})` ※メール本文の形式に合わせる
+   * **テンプレート:** `$1$`
+   * **参照名:** `verification_code`
+
+#### 方法B: JSR223 PostProcessor (Groovy)
+複雑な条件（例：件名でフィルタリングしたい、特定のHTMLタグの中身が欲しい等）がある場合は、スクリプトを使用する。
+
+1. Mail Reader Sampler の子要素に `後処理` -> `JSR223 PostProcessor` を追加する。
+2. 言語に `groovy` を選択し、スクリプトを記述する。
+
+スクリプトの例
+```groovy
+// レスポンス（メール本文）を文字列として取得
+String emailBody = prev.getResponseDataAsString();
+
+// 正規表現で6桁の数字を探す例
+def matcher = (emailBody =~ /([0-9]{6})/);
+
+if (matcher.find()) {
+    // 見つかった場合、変数 "verification_code" に格納
+    vars.put("verification_code", matcher[0][1]);
+    log.info("Code found: " + matcher[0][1]);
+} else {
+    log.warn("Code not found in email.");
+}
+```
+
+### B-5. 取得した値の利用
+抽出・格納された変数は、以降のHTTPリクエストのパラメータとして利用できる。
+
+* **利用例:** 認証画面へのPOSTリクエスト
+    * パラメータ名: `code`
+    * 値: `${verification_code}`
+
+---
+
+

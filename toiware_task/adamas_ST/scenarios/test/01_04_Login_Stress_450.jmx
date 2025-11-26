@@ -15,7 +15,7 @@
         <boolProp name="ThreadGroup.same_user_on_next_iteration">false</boolProp>
         <stringProp name="ThreadGroup.on_sample_error">startnextloop</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="ループコントローラ">
-          <stringProp name="LoopController.loops">5</stringProp>
+          <stringProp name="LoopController.loops">1</stringProp>
           <boolProp name="LoopController.continue_forever">false</boolProp>
         </elementProp>
       </ThreadGroup>
@@ -958,7 +958,7 @@ if (accountNumber != null &amp;&amp; !hid.equals(&quot;HID_NOT_FOUND&quot;) &amp
           <stringProp name="filename"></stringProp>
         </ResultCollector>
         <hashTree/>
-        <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="メールアドレスCSV読み込み">
+        <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="メールアドレスCSV読み込み" enabled="true">
           <stringProp name="filename">/Users/takada/Desktop/takada_personal/toiware_task/adamas_ST/CSV/test_01_Login_Personal.csv</stringProp>
           <stringProp name="fileEncoding">UTF-8</stringProp>
           <stringProp name="variableNames">accountNumber</stringProp>
