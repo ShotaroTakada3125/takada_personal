@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ISSUE_CMD="$SCRIPT_DIR/issue_prod_access"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  ./issue_prod_access_month YYYYMM [--dry-run] [--skip-weeks N]
+
+Examples:
+  ./issue_prod_access_month 202606
+  ./issue_prod_access_month 202606 --dry-run
+  ./issue_prod_access_month 202606 --skip-weeks 1
+
+Description:
+  For the specified month, this script generates week-by-week business ranges
+  (Mon-Fri) and runs:
+    ./issue_prod_access START_DATE END_DATE
+
+  Dates are passed as YYYYMMDD.
+  --skip-weeks lets you skip already processed first N ranges.
+EOF
+}
+
+if [[ $# -lt 1 ]]; then
+  usage
+  exit 1
+fi
+
+TARGET_MONTH="$1"
+DRY_RUN=false
+SKIP_WEEKS=0
+
+shift
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run)
+      DRY_RUN=true
+      shift
+      ;;
+    --skip-weeks)
+      if [[ $# -lt 2 ]]; then
+        echo "Missing value for --skip-weeks" >&2
+        usage
+        exit 1
+      fi
+      SKIP_WEEKS="$2"
+      shift 2
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+if [[ ! "$TARGET_MONTH" =~ ^[0-9]{6}$ ]]; then
+  echo "Invalid month format: $TARGET_MONTH (expected YYYYMM)" >&2
+  exit 1
+fi
+
+if [[ ! "$SKIP_WEEKS" =~ ^[0-9]+$ ]]; then
+  echo "Invalid value for --skip-weeks: $SKIP_WEEKS (expected non-negative integer)" >&2
+  exit 1
+fi
+
+if [[ ! -x "$ISSUE_CMD" ]]; then
+  echo "Command not found or not executable: $ISSUE_CMD" >&2
+  exit 1
+fi
+
+python3 - "$TARGET_MONTH" <<'PY' | while read -r start_date end_date; do
+import calendar
+import datetime as dt
+import sys
+
+ym = sys.argv[1]
+year = int(ym[:4])
+month = int(ym[4:6])
+
+first_day = dt.date(year, month, 1)
+last_day = dt.date(year, month, calendar.monthrange(year, month)[1])
+
+current = first_day
+while current <= last_day:
+    if current.weekday() >= 5:
+        current += dt.timedelta(days=(7 - current.weekday()))
+        continue
+
+    week_start = current
+    week_end = current + dt.timedelta(days=(4 - current.weekday()))
+    print(week_start.strftime("%Y%m%d"), week_end.strftime("%Y%m%d"))
+    current = week_end + dt.timedelta(days=1)
+PY
+  if (( SKIP_WEEKS > 0 )); then
+    echo "Skipping: ./issue_prod_access $start_date $end_date"
+    SKIP_WEEKS=$((SKIP_WEEKS - 1))
+    continue
+  fi
+
+  echo "Running: ./issue_prod_access $start_date $end_date"
+  if [[ "$DRY_RUN" == false ]]; then
+    "$ISSUE_CMD" "$start_date" "$end_date"
+  fi
+done
+
+if [[ "$DRY_RUN" == true ]]; then
+  echo "Dry run completed."
+fi

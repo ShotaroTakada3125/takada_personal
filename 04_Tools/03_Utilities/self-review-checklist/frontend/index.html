@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>セルフレビューチェックリスト</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- ヘッダー -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-check-circle"></i>
+                <span>セルフレビューチェックリスト</span>
+            </div>
+            <div class="header-actions">
+                <button class="icon-button" id="tag-settings-btn" title="タグ設定">
+                    <i class="fas fa-tags"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <!-- サイドバー -->
+        <aside class="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-header">
+                    <h3>カテゴリー</h3>
+                    <button class="icon-button-small" id="add-category-btn" title="カテゴリー追加">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <ul class="category-list" id="category-list">
+                    <!-- JavaScriptで動的に追加 -->
+                </ul>
+            </div>
+        </aside>
+
+        <!-- メインコンテンツ -->
+        <main class="main-content">
+            <div class="content-wrapper">
+                <div class="category-header">
+                    <h2 id="current-category-name">カテゴリーを選択してください</h2>
+                    <div class="category-actions" id="category-actions" style="display: none;">
+                        <button class="icon-button-small" id="edit-category-btn" title="カテゴリー編集">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button class="icon-button-small danger" id="delete-category-btn" title="カテゴリー削除">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="progress-section" id="progress-section" style="display: none;">
+                    <div class="progress-text" id="progress-text">0/0 完了</div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="progress-bar"></div>
+                    </div>
+                </div>
+
+                <div id="complete-message" class="complete-message hidden">
+                    <i class="fas fa-check-circle"></i> 完了！
+                </div>
+
+                <div class="checklist" id="checklist">
+                    <!-- JavaScriptで動的に追加 -->
+                </div>
+
+                <div class="list-actions" id="list-actions" style="display: none;">
+                    <button class="btn btn-secondary" id="add-item-btn">
+                        <i class="fas fa-plus"></i> 観点を追加
+                    </button>
+                    <button class="btn btn-danger" id="reset-btn">
+                        <i class="fas fa-redo"></i> リセット
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- モーダル：汎用 -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal" id="modal">
+            <div class="modal-header">
+                <h3 id="modal-title">タイトル</h3>
+                <button class="modal-close" id="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- 動的に変更 -->
+            </div>
+            <div class="modal-footer" id="modal-footer">
+                <button class="btn btn-secondary" id="modal-cancel">キャンセル</button>
+                <button class="btn btn-primary" id="modal-confirm">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

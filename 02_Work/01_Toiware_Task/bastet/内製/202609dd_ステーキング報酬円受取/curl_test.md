@@ -1,0 +1,20 @@
+curl -i 'http://localhost:9000/api/staking/conversion/register' \
+  -H 'Accept: */*' \
+  -H 'Accept-Language: ja,en-US;q=0.9,en;q=0.8' \
+  -H 'Cache-Control: no-cache' \
+  -H 'Connection: keep-alive' \
+  -H 'Content-Type: application/json' \
+  -b '_ga=GA1.1.336629263.1764234585; __lt__cid=a8653b75-2011-4fba-95da-616e7ca304ba; snexid=73c10e46-c4c0-497d-a4e2-5a97c7faf3ca; robee_uid=85d171612f9cd8f44a155b0a525a52bb1764234585121; _im_vid=01KB296S8MAWGEWBM832QF63FW; hubspotutk=2c375cd637c5ca054bd2dbcfa3422c69; _tt_enable_cookie=1; _ttp=01KB29RNRMH8TF4KYPXJKT30ZM_.tt.0; _fbp=fb.0.1764235171656.598697428423520277; _imdb_matag_localid=fa1cc407-05cf-4551-a35e-d76ec7072c73; _gcl_au=1.1.83577950.1779934306; _wasc=VM2NvLJ15DdegFhm.1; _ga_JSLZGEG1T4=GS2.1.s1781066098$o5$g0$t1781066098$j60$l0$h0; _gid=GA1.1.1581357659.1782006868; vrize_uid_ac=; vrize_uid=; __hssrc=1; connect.sid=s%3Ay8oEBmWo3jDl264AsjLOMiJo9umoW2Aa.KJsdcpOSxKAAgGzc8tFZjUpPcx3t2b1Ec8rurDTCPuw; __lt__sid=c8c55f9b-f43df087; robee_sid=fd051764234585121; __hstc=181257784.2c375cd637c5ca054bd2dbcfa3422c69.1764234585440.1782006870176.1782020753871.288; __hssc=181257784.1.1782020753871' \
+  -H 'Origin: http://localhost:9000' \
+  -H 'Pragma: no-cache' \
+  -H 'Referer: http://localhost:9000/' \
+  -H 'Sec-Fetch-Dest: empty' \
+  -H 'Sec-Fetch-Mode: cors' \
+  -H 'Sec-Fetch-Site: same-origin' \
+  -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36' \
+  -H 'X-From: http://localhost:9000/' \
+  -H 'dnt: 1' \
+  -H 'sec-ch-ua: "Google Chrome";v="149", "Chromium";v="149", "Not)A;Brand";v="24"' \
+  -H 'sec-ch-ua-mobile: ?0' \
+  -H 'sec-ch-ua-platform: "macOS"' \
+  --data-raw '{"changeList":[{"currency":"BTC","jpyConversionEnabled":true},{"currency":"ETH","jpyConversionEnabled":true},{"currency":"DOT","jpyConversionEnabled":false},{"currency":"ADA","jpyConversionEnabled":false},{"currency":"XTZ","jpyConversionEnabled":false},{"currency":"SOL","jpyConversionEnabled":false},{"currency":"AVAX","jpyConversionEnabled":false},{"currency":"FLR","jpyConversionEnabled":false},{"currency":"OAS","jpyConversionEnabled":true},{"currency":"XDC","jpyConversionEnabled":true},{"currency":"ATOM","jpyConversionEnabled":true},{"currency":"APT","jpyConversionEnabled":false},{"currency":"HBAR","jpyConversionEnabled":false},{"currency":"NEAR","jpyConversionEnabled":false},{"currency":"TON","jpyConversionEnabled":false},{"currency":"SUI","jpyConversionEnabled":false},{"currency":"ALGO","jpyConversionEnabled":false},{"currency":"TRX","jpyConversionEnabled":false}]}'

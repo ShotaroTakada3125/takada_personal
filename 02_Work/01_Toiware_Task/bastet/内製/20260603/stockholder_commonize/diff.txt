@@ -1,0 +1,1819 @@
+diff --git a/client/actions/stockholderCampaign.js b/client/actions/stockholderCampaign.js
+new file mode 100644
+index 000000000..a71aff3c6
+--- /dev/null
++++ b/client/actions/stockholderCampaign.js
+@@ -0,0 +1,334 @@
++import * as c from "../constants/stockholderCampaign";
++import * as v from "./validate";
++import { request } from "../utils/request";
++import { putSession } from "./session";
++import { simpleLogin } from "./account";
++
++/**
++ * 株主優待キャンペーン用 ログイン処理（共通）
++ *
++ * account.js の simpleLogin() を呼び出した後、申込可否チェックを行う
++ * 1. Simplex ログイン（account.js で実行）
++ * 2. 申込可否チェック API呼び出し
++ * 3. チェック結果による分岐
++ *    - NG: エラーアラート表示 → 通常ログイン画面へ遷移
++ *    - OK: 2要素認証画面へ遷移
++ *
++ * @params {object} params ログイン情報 { email, password, redirectTo, cancelTo, isLogined }
++ * @params {object} campaignParams キャンペーン情報 { keyword, term }
++ * @params {object} history React Router の history オブジェクト
++ */
++export const simpleLoginForStockholderCampaign = (params, campaignParams, history) => async (dispatch) => {
++  const { keyword, term } = campaignParams;
++
++  // account.js の simpleLogin() を呼び出し
++  await dispatch(simpleLogin(
++    params,
++    history,
++    async () => {
++      // 申込可否チェック
++      const checkResult = await dispatch(checkAccount({ keyword, term }, history));
++
++      // チェック結果による分岐
++      if (checkResult.payload.status !== 200) {
++        // エラーメッセージを表示して通常ログイン画面へリダイレクト
++        const message = (checkResult.payload.res && checkResult.payload.res.message) || "申し込みの確認に失敗しました。";
++        alert(message);
++        history.replace("/signin");
++        return;
++      }
++
++      // 2要素認証画面へ遷移
++      history.push("/second_auth");
++    }
++  ));
++};
++
++/**
++ * 不正遷移チェック
++ * 直リンクアクセスの場合は口座状況が参照できないので、不正遷移として申込ログイン画面へ
++ *
++ * @params {string} keyword キャンペーン識別子
++ * @params {string} term 期間識別子
++ * @params {object} history リダイレクトに利用
++ */
++export const checkUnauthorizedNavigation = (keyword, term, history) => (dispatch, getState) => {
++  const { account } = getState();
++
++  // 直リンクの場合は口座状況が参照できないので、不正遷移として申込ログイン画面へ
++  if (!account || !account.status) {
++    history.replace(`/${keyword}/${term}/input`);
++  }
++};
++
++/**
++ * 申込可否チェック
++ *
++ * @params {object} params { keyword, term }
++ * @params {object} history リダイレクトに利用
++ */
++export const checkAccount = (params, history) => async (dispatch) => {
++  const { keyword, term } = params;
++  // 不正遷移チェック
++  dispatch(checkUnauthorizedNavigation(keyword, term, history));
++
++  // すでに申込み済みであれば通常ログイン画面へリダイレクト
++  dispatch(requestCheckAccount());
++  const result = await request({
++    path: '/api/stockholder_bonus_entry/account_check',
++    method: 'GET',
++    params,
++  });
++
++  if (result === null || result.status !== 200) {
++    if (result && result.res && result.res.direct) {
++      alert(result.res.message);
++      history.replace("/signin");
++    }
++    return dispatch(failureCheckAccount(result));
++  }
++
++  return dispatch(successCheckAccount(result));
++};
++
++export const requestCheckAccount = () => {
++  return {
++    type: c.REQUEST_CHECK_ACCOUNT,
++  };
++};
++
++export const failureCheckAccount = (result) => {
++  return {
++    type: c.FAILURE_CHECK_ACCOUNT,
++    payload: {
++      res: result === null ? null : result.res,
++      status: result === null ? null : result.status,
++    },
++  };
++};
++
++export const successCheckAccount = (result) => {
++  return {
++    type: c.SUCCESS_CHECK_ACCOUNT,
++    payload: result.res,
++  };
++};
++
++/**
++ * フォームの入力
++ *
++ * @params {string}          key    Stateのkey
++ * @params {string | object} value  Stateのvalue
++ */
++export const inputForm = (key, value) => {
++  return {
++    type: c.INPUT_FORM,
++    payload: {
++      key,
++      value,
++    },
++  };
++};
++
++/**
++ * 入力値検証
++ *
++ * @params {object} params { keyword, term, formData }
++ * @params {object} history リダイレクトに利用
++ *
++ * 使用方法：
++ * dispatch(setBasic({ keyword: "anap", term: "202605", formData }, history));
++ */
++export const setBasic = (params, history) => async (dispatch) => {
++  const { keyword, term, formData } = params;
++
++  // バリデーション実行
++  if (!dispatch(validateSetBasic({ keyword, formData }))) {
++    return;
++  }
++
++  dispatch(putSession(formData));
++
++  dispatch(requestSetBasic());
++  const result = await request({
++    path: '/api/stockholder_bonus_entry/entry_check',
++    method: 'GET',
++    params,
++  });
++
++  if (result === null || result.status !== 200) {
++    return dispatch(failureSetBasic(result));
++  }
++
++  history.push("/" + keyword + "/" + term + "/confirm");
++  return dispatch(successSetBasic(result));
++};
++
++export const requestSetBasic = () => {
++  return {
++    type: c.REQUEST_SET_BASIC,
++  };
++};
++
++export const failureSetBasic = (result) => {
++  return {
++    type: c.FAILURE_SET_BASIC,
++    payload: {
++      res: result === null ? null : result.res,
++      status: result === null ? null : result.status,
++    },
++  };
++};
++
++export const successSetBasic = (result) => {
++  return {
++    type: c.SUCCESS_SET_BASIC,
++    payload: result.res,
++  };
++};
++
++/**
++ * 入力値バリデーション
++ *
++ * キャンペーン定義に基づいて、必要なバリデーションを自動実行
++ * 新規キャンペーン追加時は constants/stockholderCampaign.js に追記するのみ
++ *
++ * @params {object} params { keyword, formData }
++ */
++export const validateSetBasic = (params) => (dispatch) => {
++  const { keyword, formData } = params;
++  // validation 定義を取得
++  const schema = c.CAMPAIGN_VALIDATION_SCHEMAS[keyword];
++  if (!schema) {
++    throw new Error(`Invalid campaign keyword: ${keyword}`);
++  }
++
++  // バリデーション実行
++  let hasError = false;
++  for (const field of schema.fields) {
++    const { key, validator: validatorName } = field;
++
++    // validator 関数を取得
++    const validatorFn = v[validatorName];
++    if (!validatorFn) {
++      throw new Error(
++        `Validator function not found: ${validatorName} (campaign: ${keyword})`
++      );
++    }
++
++    // validation 関数を実行
++    const action = validatorFn(key, formData[key]);
++    dispatch(action);
++
++    if (!action.payload.result) {
++      hasError = true;
++    }
++  }
++
++  return !hasError;
++};
++
++/**
++ * 申込
++ *
++ * @params {object} params { keyword, term, formData }
++ * @params {object} redirect リダイレクト関数
++ */
++export const post = (params, redirect) => async (dispatch, getState) => {
++  dispatch(requestPost());
++
++  const result = await request({
++    path: "/api/stockholder_bonus_entry",
++    method: "GET",  // フロント → Express は GET を使用
++    params,
++  });
++
++  if (result === null || result.status !== 200) {
++    return dispatch(failurePost(result));
++  }
++
++  sessionStorage.removeItem("rd");
++
++  // キャンペーン名からアラートメッセージを生成
++  const { stockholderCampaign } = getState();
++  const { campaignName } = stockholderCampaign;
++  alert(`${campaignName}のお申込みを確定しました。`);
++
++  redirect();
++  return dispatch(successPost());
++};
++
++export const requestPost = () => {
++  return {
++    type: c.REQUEST_POST,
++  };
++};
++
++export const failurePost = (result) => {
++  return {
++    type: c.FAILURE_POST,
++    payload: {
++      res: result === null ? null : result.res,
++      status: result === null ? null : result.status,
++    },
++  };
++};
++
++export const successPost = () => {
++  return {
++    type: c.SUCCESS_POST,
++  };
++};
++
++/**
++ * 申込済みデータを取得
++ *
++ * @params {object} params { keyword, term }
++ */
++export const get = (params) => async (dispatch) => {
++  dispatch(requestGet());
++
++  const result = await request({
++    path: '/api/stockholder_bonus_entry',
++    method: 'GET',
++    params,
++  });
++
++  if (result === null || result.status !== 200) {
++    return dispatch(failureGet(result));
++  }
++
++  return dispatch(successGet(result));
++};
++
++export const requestGet = () => {
++  return {
++    type: c.REQUEST_GET,
++  };
++};
++
++export const failureGet = (result) => {
++  return {
++    type: c.FAILURE_GET,
++    payload: {
++      res: result === null ? null : result.res,
++      status: result === null ? null : result.status,
++    },
++  };
++};
++
++export const successGet = (result) => {
++  return {
++    type: c.SUCCESS_GET,
++    payload: result.res,
++  };
++};
++
++/**
++ * フラグのリセット
++ */
++export const resetFlags = () => {
++  return {
++    type: c.RESET_FLAGS,
++  };
++};
+diff --git a/client/components/Form/StockholderCampaign/Confirm/Confirm.jsx b/client/components/Form/StockholderCampaign/Confirm/Confirm.jsx
+new file mode 100644
+index 000000000..cd94a312c
+--- /dev/null
++++ b/client/components/Form/StockholderCampaign/Confirm/Confirm.jsx
+@@ -0,0 +1,119 @@
++import React from "react";
++import { Link } from "react-router-dom";
++import { Form, Fields, PrimaryButton } from "../..";
++import Area from "../../../Area";
++import ServerErrorMessage from "../../../ServerErrorMessage";
++import styles from "./confirm.css";
++
++/**
++ * 共通の確認画面コンポーネント
++ * @param {string} campaignName - キャンペーン名
++ */
++class Confirm extends React.Component {
++  componentDidMount() {
++    const term = window.location.pathname.split('/')[2];
++    const keyword = window.location.pathname.split('/')[1];
++    this.props.checkAccount({ keyword, term });
++    this.props.getSession();
++  }
++
++  componentWillUnmount() {
++    this.props.resetFlags();
++  }
++
++  handleSubmit = () => {
++    const term = window.location.pathname.split('/')[2];
++    const keyword = window.location.pathname.split('/')[1];
++    const { customerType } = this.props.account;
++    const { formData } = this.props.stockholderCampaign;
++
++    // パラメータを整形
++    const params = {
++      keyword,
++      term,
++      formData: {
++        ...formData,
++        customerType: customerType === "individual" ? 1 : 0,
++      },
++    };
++
++    this.props.post(params);
++  }
++
++  render() {
++    const { email } = this.props.account;
++    const {
++      campaignName,
++      entryCodeLabel,
++      entryPasswordLabel,
++      fullName,
++      clientError,
++      serverError,
++      formData,
++    } = this.props.stockholderCampaign;
++    const term = window.location.pathname.split('/')[2];
++    const keyword = window.location.pathname.split('/')[1];
++    const { displayFields } = this.props;
++
++    return (
++      <div className={styles.wrapper}>
++        <Area>
++          <h1 className={styles.title}>{campaignName}申込</h1>
++          <p className={styles.description}>
++            以下の内容で、株主優待の申込を確定します。
++          </p>
++          <Form>
++            <div className={styles.input}>
++              {displayFields && displayFields.map((field, index) => (
++                <Fields key={index} title={field.label}>
++                  <p className={styles.confirm}>
++                    {field.value}
++                  </p>
++                </Fields>
++              ))}
++              {!displayFields && (
++                <div>
++                  <Fields title={entryCodeLabel}>
++                    <p className={styles.confirm}>
++                      {formData.entryId || formData.entryCode || formData.stockholderNumber || ""}
++                    </p>
++                  </Fields>
++                  <Fields title={entryPasswordLabel}>
++                    <p className={styles.confirm}>
++                      {formData.entryPassword}
++                    </p>
++                  </Fields>
++                  <Fields title="SBI VCトレード登録メールアドレス">
++                    <p className={styles.confirm}>
++                      {email}
++                    </p>
++                  </Fields>
++                  <Fields title="氏名（法人名）">
++                    <p className={styles.confirm}>
++                      {fullName}
++                    </p>
++                  </Fields>
++                </div>
++              )}
++            </div>
++            <div className={styles.action}>
++              <ServerErrorMessage serverError={serverError} />
++              <PrimaryButton
++                value="申込む"
++                disabled={Object.keys(clientError).length > 0}
++                onClick={this.handleSubmit}
++              />
++              <div className={styles.back}>
++                <Link className={styles.backLink} to={`/${keyword}/${term}/entry`}>
++                  前の画面に戻る
++                </Link>
++              </div>
++            </div>
++          </Form>
++        </Area>
++      </div>
++    );
++  }
++}
++
++export default Confirm;
+diff --git a/client/components/Form/StockholderCampaign/Confirm/confirm.css b/client/components/Form/StockholderCampaign/Confirm/confirm.css
+new file mode 100644
+index 000000000..0ac1f8c2c
+--- /dev/null
++++ b/client/components/Form/StockholderCampaign/Confirm/confirm.css
+@@ -0,0 +1,136 @@
++@import "../../../../styles/colors.css";
++
++.wrapper {
++  padding: 20px 0 60px;
++}
++
++.field {
++  padding-top: 10px;
++}
++
++.title {
++  font-size: 24px;
++  font-weight: bold;
++  color: var(--color-text-main);
++  text-align: center;
++  padding: 40px 0;
++}
++
++.topImage {
++  width: 100%;
++}
++
++.required {
++  color: var(--color-accent);
++  font-weight: normal;
++  margin-right: 4px;
++}
++
++.warn {
++  font-size: 12px;
++  font-weight: bold;
++  color: var(--color-text-error);
++  padding: 0 0 20px;
++  width: 410px;
++  margin: 0 auto;
++}
++
++.description {
++  font-size: 12px;
++  color: var(--color-text-main);
++  padding-bottom: 40px;
++  text-align: center;
++}
++
++.text {
++  font-size: 12px;
++}
++
++.columns {
++  display: flex;
++  justify-content: space-between;
++  margin: 0 -10px;
++}
++
++.column {
++  margin: 0 10px;
++}
++
++.confirm {
++  border-bottom: 1px solid #DDD;
++  padding-top: 10px;
++  padding-bottom: 10px;
++  height: auto;
++  min-height: 1em;
++  overflow-wrap: anywhere;
++}
++
++@media screen and (min-width: 640px) {
++  .warn {
++    width: 410px;
++    margin: 0 auto;
++  }
++
++  .input {
++    width: 400px;
++    margin: 0 auto;
++  }
++}
++
++@media screen and (max-width: 640px) {
++  .warn {
++    width: inherit;
++    margin: 0 auto;
++  }
++
++  .input {
++    margin: 0 auto;
++  }
++}
++
++.labels {
++  padding: 10px 0;
++}
++
++.label {
++  display: flex;
++  align-items: center;
++  margin-right: 20px;
++}
++
++.checkLabel {
++  display: flex;
++
++  input {
++    margin-top: 5px;
++    width: 16px;
++  }
++
++  p {
++    flex: 1;
++  }
++}
++
++.action {
++  text-align: center;
++}
++
++.clientErrorText {
++  color: var(--color-text-error);
++  font-size: 12px;
++  padding-top: 5px;
++}
++
++.errorText {
++  color: var(--color-text-error);
++  padding-bottom: 10px;
++}
++
++.back {
++  padding-top: 20px;
++}
++
++.backLink {
++  font-size: 16px;
++  display: inline-block;
++}
+diff --git a/client/components/Form/StockholderCampaign/Confirm/index.jsx b/client/components/Form/StockholderCampaign/Confirm/index.jsx
+new file mode 100644
+index 000000000..5a8e885ee
+--- /dev/null
++++ b/client/components/Form/StockholderCampaign/Confirm/index.jsx
+@@ -0,0 +1,49 @@
++import { connect } from "react-redux";
++import auth from "../../../../utils/simpleauth";
++import { withRouter } from "react-router";
++import Confirm from "./Confirm";
++import {
++  checkAccount,
++  resetFlags,
++  post,
++} from "../../../../actions/stockholderCampaign";
++import { getSession } from "../../../../actions/session";
++
++export function mapStateToProps({ account, stockholderCampaign }) {
++  return {
++    account,
++    stockholderCampaign,
++  };
++}
++
++export function mapDispatchToProps(dispatch) {
++  return {
++    checkAccount(params, history) {
++      dispatch(checkAccount(params, history));
++    },
++    getSession() {
++      dispatch(getSession());
++    },
++    post(params, redirect) {
++      dispatch(post(params, redirect));
++    },
++    resetFlags() {
++      dispatch(resetFlags());
++    },
++  };
++}
++
++export function mergeProps(stateProps, dispatchProps, ownProps) {
++  return {
++    ...stateProps,
++    ...dispatchProps,
++    ...ownProps,
++    checkAccount(params) {
++      dispatchProps.checkAccount(params, ownProps.history);
++    },
++  };
++}
++
++export default auth(
++  connect(mapStateToProps, mapDispatchToProps, mergeProps)(withRouter(Confirm))
++);
+diff --git a/client/components/Form/StockholderCampaign/Input/Input.jsx b/client/components/Form/StockholderCampaign/Input/Input.jsx
+new file mode 100644
+index 000000000..00bf82a0a
+--- /dev/null
++++ b/client/components/Form/StockholderCampaign/Input/Input.jsx
+@@ -0,0 +1,120 @@
++import React from "react";
++import { PrimaryButton, Fieldset, Textfield, TransferGuide, LoginGuide } from "../..";
++import Area from "../../../Area";
++import styles from "./input.css";
++
++/**
++ * 共通のログイン画面コンポーネント
++ * @param {string} campaignName - キャンペーン名（表示用）
++ * @param {boolean} isEntry - true = 申込入力画面へ、false = 申込確認画面へ
++ */
++class Input extends React.Component {
++  state = {
++    visible: false, // パスワードを表示or非表示
++  };
++
++  componentDidMount() {
++    this.props.resetAccount();
++  }
++
++  componentWillUnmount() {
++    this.props.resetFlags();
++  }
++
++  simpleLogin() {
++    const { email, password } = this.props.account;
++    const paths = window.location.pathname.split('/');
++    let redirectTo = "";
++    const keyword = paths[1];
++    const term = paths[2];
++
++    if (paths[3] === "input") {
++      redirectTo = `/${keyword}/${term}/entry`;
++    } else {
++      redirectTo = `/${keyword}/${term}/refer`;
++    }
++    const cancelTo = `/${keyword}/${term}/${paths[3]}`;
++
++    // 株主優待キャンペーン用ログイン処理を呼び出し
++    // このメソッドは以下の流れを制御する:
++    // 1. Simplex ログイン
++    // 2. 申込可否チェック
++    // 3. 2要素認証画面へ遷移
++    this.props.simpleLoginForStockholderCampaign({
++      email,
++      password,
++      redirectTo,
++      cancelTo,
++      isLogined: false,
++    }, {
++      keyword,
++      term,
++    });
++  }
++
++  render() {
++    const { email, password, clientError, serverError } = this.props.account;
++    const { campaignName } = this.props;
++    const isEntry = window.location.pathname.split('/')[3] === "input";
++
++    return (
++      <div className={styles.wrapper}>
++        <Area>
++          <h1 className={styles.title}>{campaignName}{isEntry ? "申込" : "申込確認"}</h1>
++          <div className={styles.container}>
++            <div className={styles.content}>
++              <Fieldset legend="VCTRADEメールアドレス、または口座番号">
++                <Textfield
++                  type="email"
++                  placeholder="mailaddress@sbivc.co.jp"
++                  value={email}
++                  onEnter={() => this.simpleLogin()}
++                  onChange={(e) => this.props.inputAccountForm("email", e.target.value)}
++                  onValidate={(e) => this.props.validateSimplexEmail("email", e.target.value)}
++                  error={clientError.email}
++                />
++              </Fieldset>
++              <Fieldset legend="パスワード">
++                <Textfield
++                  type={this.state.visible ? "text" : "password"}
++                  placeholder="**********"
++                  value={password}
++                  onEnter={() => this.simpleLogin()}
++                  onChange={(e) => this.props.inputAccountForm("password", e.target.value)}
++                  onValidate={(e) => this.props.validateAccountPassword(e.target.value)}
++                  error={clientError.password}
++                  autoComplete="off"
++                />
++              </Fieldset>
++              <label>
++                <input
++                  type="checkbox"
++                  checked={this.state.visible}
++                  onChange={(e) => this.setState({ visible: e.target.checked })}
++                />
++                パスワードを表示する
++              </label>
++              <div className={styles.action}>
++                <p
++                  className={styles.errorText}
++                  dangerouslySetInnerHTML={{ __html: serverError.message }}
++                />
++                <PrimaryButton
++                  onClick={() => this.simpleLogin()}
++                  value="ログイン"
++                  disabled={Object.keys(clientError).length > 0}
++                />
++                {isEntry &&
++                  <TransferGuide />
++                 }
++                <LoginGuide />
++              </div>
++            </div>
++          </div>
++        </Area>
++      </div>
++    );
++  }
++}
++
++export default Input;
+diff --git a/client/components/Form/StockholderCampaign/Input/index.jsx b/client/components/Form/StockholderCampaign/Input/index.jsx
+new file mode 100644
+index 000000000..e553af641
+--- /dev/null
++++ b/client/components/Form/StockholderCampaign/Input/index.jsx
+@@ -0,0 +1,69 @@
++import { connect } from "react-redux";
++import { withRouter } from "react-router";
++import Input from "./Input";
++import {
++  inputAccountForm,
++  validateAccountPassword,
++  resetFlags,
++  resetAccount,
++  simpleLogin,
++} from "../../../../actions/account";
++import { simpleLoginForStockholderCampaign } from "../../../../actions/stockholderCampaign";
++import { validateEmail, validateSimplexEmail } from "../../../../actions/validate";
++
++export function mapStateToProps({ account }) {
++  return {
++    account,
++  };
++}
++
++export function mapDispatchToProps(dispatch) {
++  return {
++    inputAccountForm(key, value) {
++      dispatch(inputAccountForm(key, value));
++    },
++    validateEmail(key, email) {
++      dispatch(validateEmail(key, email));
++    },
++    validateSimplexEmail(key, email) {
++      dispatch(validateSimplexEmail(key, email));
++    },
++    validateAccountPassword(password) {
++      dispatch(validateAccountPassword(password));
++    },
++    simpleLogin(params, history, redirect) {
++      dispatch(simpleLogin(params, history, redirect));
++    },
++    simpleLoginForStockholderCampaign(params, campaignParams, history) {
++      dispatch(simpleLoginForStockholderCampaign(params, campaignParams, history));
++    },
++    resetFlags() {
++      dispatch(resetFlags());
++    },
++    resetAccount() {
++      dispatch(resetAccount());
++    },
++  };
++}
++
++export function mergeProps(stateProps, dispatchProps, ownProps) {
++  return {
++    ...stateProps,
++    ...dispatchProps,
++    ...ownProps,
++    simpleLogin(params) {
++      dispatchProps.simpleLogin(params, ownProps.history, () => {
++        ownProps.history.push("/second_auth")
++      });
++    },
++    simpleLoginForStockholderCampaign(params, campaignParams) {
++      dispatchProps.simpleLoginForStockholderCampaign(params, campaignParams, ownProps.history);
++    },
++  };
++}
++
++export default connect(
++  mapStateToProps,
++  mapDispatchToProps,
++  mergeProps
++)(withRouter(Input));
+diff --git a/client/components/Form/StockholderCampaign/Input/input.css b/client/components/Form/StockholderCampaign/Input/input.css
+new file mode 100644
+index 000000000..076bc5288
+--- /dev/null
++++ b/client/components/Form/StockholderCampaign/Input/input.css
+@@ -0,0 +1,108 @@
++@import "../../../../styles/colors.css";
++
++.transferGuide {
++  margin-top: 20px;
++  width: 100%;
++  border-radius: 5px;
++  background: var(--color-bg-gray);
++  box-sizing: border-box;
++  padding: 20px 15px;
++
++  .transferGuideTitle {
++    font-weight: bold;
++    text-align: center;
++  }
++
++  .transferGuideDescription {
++    padding-top: 10px;
++  }
++}
++
++.notice {
++  padding-top: 20px;
++}
++
++.link {
++  padding-top: 20px;
++}
++
++.linkItem {
++  padding-bottom: 10px;
++}
++
++.signup {
++  text-align: center;
++  font-size: 16px;
++  margin-top: 20px;
++}
++
++@media screen and (min-width: 640px) {
++  .wrapper {
++    padding: 20px 0 60px;
++  }
++
++  .container {
++    background-color: var(--color-bg-white);
++    padding: 80px 0;
++    border-radius: 5px;
++    border: 1px solid var(--color-border-light);
++  }
++
++  .title {
++    font-size: 24px;
++    font-weight: bold;
++    color: var(--color-text-main);
++    text-align: center;
++    padding: 40px 0;
++  }
++
++  .content {
++    width: 400px;
++    margin: 0 auto;
++  }
++
++  .action {
++    margin-top: 30px;
++  }
++
++  .errorText {
++    color: var(--color-text-error);
++    padding: 0 20px 10px;
++    font-size: 14px;
++  }
++}
++
++@media screen and (max-width: 640px) {
++  .wrapper {
++    padding: 20px 0 60px;
++  }
++
++  .container {
++    background-color: var(--color-bg-white);
++    padding: 40px 20px;
++    border-radius: 5px;
++    border: 1px solid var(--color-border-light);
++  }
++
++  .title {
++    font-size: 24px;
++    font-weight: bold;
++    color: var(--color-text-main);
++    text-align: center;
++    padding: 40px 0;
++  }
++
++  .content {
++    margin: 0 0;
++  }
++
++  .action {
++    margin-top: 10px;
++  }
++
++  .errorText {
++    color: var(--color-text-error);
++    padding-bottom: 10px;
++    font-size: 12px;
++  }
++}
+diff --git a/client/components/Form/StockholderCampaign/Refer/Refer.jsx b/client/components/Form/StockholderCampaign/Refer/Refer.jsx
+new file mode 100644
+index 000000000..8eab7a990
+--- /dev/null
++++ b/client/components/Form/StockholderCampaign/Refer/Refer.jsx
+@@ -0,0 +1,97 @@
++import React from "react";
++import { Form, Fields } from "../..";
++import Area from "../../../Area";
++import ServerErrorMessage from "../../../ServerErrorMessage";
++import styles from "./refer.css";
++
++/**
++ * 共通の参照画面コンポーネント
++ * @param {string} campaignName - キャンペーン名
++ * @param {function} onLoad - 初期読込処理（キャンペーン固有）
++ */
++class Refer extends React.Component {
++  componentDidMount() {
++    const keyword = window.location.pathname.split('/')[1];
++    const term = window.location.pathname.split('/')[2];
++
++    // 不正遷移チェック
++    this.props.checkUnauthorizedNavigation(keyword, term);
++    // 登録済みデータ取得
++    this.props.get({ keyword, term });
++  }
++
++  componentWillUnmount() {
++    this.props.resetFlags();
++  }
++
++  render() {
++    const { email } = this.props.account;
++    const {
++      campaignName,
++      entryCodeLabel,
++      entryPasswordLabel,
++      fullName,
++      updateDatetime,
++      registeredMsg,
++      serverError,
++      formData,
++    } = this.props.stockholderCampaign;
++    const { displayFields } = this.props;
++
++    return (
++      <div className={styles.wrapper}>
++        <Area>
++          <h1 className={styles.title}>{campaignName}申込確認</h1>
++          <Form>
++            <h2 className={styles.registeredMsg}>
++              {registeredMsg}
++            </h2>
++            <div className={styles.input}>
++              {displayFields && displayFields.map((field, index) => (
++                <Fields key={index} title={field.label}>
++                  <p className={styles.confirm}>
++                    {field.value}
++                  </p>
++                </Fields>
++              ))}
++              {!displayFields && (
++                <div>
++                  <Fields title={entryCodeLabel}>
++                    <p className={styles.confirm}>
++                      {formData.entryId || formData.entryCode || formData.stockholderNumber || "ー"}
++                    </p>
++                  </Fields>
++                  <Fields title={entryPasswordLabel}>
++                    <p className={styles.confirm}>
++                      {formData.entryPassword || "ー"}
++                    </p>
++                  </Fields>
++                  <Fields title="SBI VCトレード登録メールアドレス">
++                    <p className={styles.confirm}>
++                      {email}
++                    </p>
++                  </Fields>
++                  <Fields title="氏名（法人名）">
++                    <p className={styles.confirm}>
++                      {fullName}
++                    </p>
++                  </Fields>
++                  <Fields title="申込日時">
++                    <p className={styles.confirm}>
++                      {updateDatetime || "ー"}
++                    </p>
++                  </Fields>
++                </div>
++              )}
++            </div>
++            <div className={styles.action}>
++              <ServerErrorMessage serverError={serverError} />
++            </div>
++          </Form>
++        </Area>
++      </div>
++    );
++  }
++}
++
++export default Refer;
+diff --git a/client/components/Form/StockholderCampaign/Refer/index.jsx b/client/components/Form/StockholderCampaign/Refer/index.jsx
+new file mode 100644
+index 000000000..6534ea9b8
+--- /dev/null
++++ b/client/components/Form/StockholderCampaign/Refer/index.jsx
+@@ -0,0 +1,45 @@
++import { connect } from "react-redux";
++import auth from "../../../../utils/simpleauth";
++import { withRouter } from "react-router";
++import Refer from "./Refer";
++import {
++  checkUnauthorizedNavigation,
++  resetFlags,
++  get,
++} from "../../../../actions/stockholderCampaign";
++
++export function mapStateToProps({ account, stockholderCampaign }) {
++  return {
++    account,
++    stockholderCampaign,
++  };
++}
++
++export function mapDispatchToProps(dispatch) {
++  return {
++    checkUnauthorizedNavigation(keyword, term, history) {
++      dispatch(checkUnauthorizedNavigation(keyword, term, history));
++    },
++    get(params) {
++      dispatch(get(params));
++    },
++    resetFlags() {
++      dispatch(resetFlags());
++    },
++  };
++}
++
++export function mergeProps(stateProps, dispatchProps, ownProps) {
++  return {
++    ...stateProps,
++    ...dispatchProps,
++    ...ownProps,
++    checkUnauthorizedNavigation(keyword, term) {
++      dispatchProps.checkUnauthorizedNavigation(keyword, term, ownProps.history);
++    },
++  };
++}
++
++export default auth(
++  connect(mapStateToProps, mapDispatchToProps, mergeProps)(withRouter(Refer))
++);
+diff --git a/client/components/Form/StockholderCampaign/Refer/refer.css b/client/components/Form/StockholderCampaign/Refer/refer.css
+new file mode 100644
+index 000000000..b7031262d
+--- /dev/null
++++ b/client/components/Form/StockholderCampaign/Refer/refer.css
+@@ -0,0 +1,136 @@
++@import "../../../../styles/colors.css";
++
++.wrapper {
++  padding: 20px 0 60px;
++}
++
++.field {
++  padding-top: 10px;
++}
++
++.title {
++  font-size: 24px;
++  font-weight: bold;
++  color: var(--color-text-main);
++  text-align: center;
++  padding: 40px 0;
++}
++
++.topImage {
++  width: 100%;
++}
++
++.required {
++  color: var(--color-accent);
++  font-weight: normal;
++  margin-right: 4px;
++}
++
++.warn {
++  font-size: 12px;
++  font-weight: bold;
++  color: var(--color-text-error);
++  padding: 0 0 20px;
++  width: 410px;
++  margin: 0 auto;
++}
++
++.registeredMsg {
++  font-size: 20px;
++  padding-bottom: 40px;
++  text-align: center;
++}
++
++.text {
++  font-size: 12px;
++}
++
++.columns {
++  display: flex;
++  justify-content: space-between;
++  margin: 0 -10px;
++}
++
++.column {
++  margin: 0 10px;
++}
++
++.confirm {
++  border-bottom: 1px solid #DDD;
++  padding-top: 10px;
++  padding-bottom: 10px;
++  height: auto;
++  min-height: 1em;
++  overflow-wrap: anywhere;
++}
++
++@media screen and (min-width: 640px) {
++  .warn {
++    width: 410px;
++    margin: 0 auto;
++  }
++
++  .input {
++    width: 400px;
++    margin: 0 auto;
++  }
++}
++
++@media screen and (max-width: 640px) {
++  .warn {
++    width: inherit;
++    margin: 0 auto;
++  }
++
++  .input {
++    margin: 0 auto;
++  }
++}
++
++.labels {
++  padding: 10px 0;
++}
++
++.label {
++  display: flex;
++  align-items: center;
++  margin-right: 20px;
++}
++
++.checkLabel {
++  display: flex;
++
++  input {
++    margin-top: 5px;
++    width: 16px;
++  }
++
++  p {
++    flex: 1;
++  }
++}
++
++.action {
++  padding-top: 40px;
++  text-align: center;
++}
++
++.clientErrorText {
++  color: var(--color-text-error);
++  font-size: 12px;
++  padding-top: 5px;
++}
++
++.errorText {
++  color: var(--color-text-error);
++  padding-bottom: 10px;
++}
++
++.back {
++  padding-top: 20px;
++}
++
++.backLink {
++  font-size: 16px;
++  display: inline-block;
++}
+diff --git a/client/components/Loading/Loading.jsx b/client/components/Loading/Loading.jsx
+index 5cb022e6a..9a21798e3 100644
+--- a/client/components/Loading/Loading.jsx
++++ b/client/components/Loading/Loading.jsx
+@@ -79,6 +79,10 @@ class Loading extends React.Component {
+         this.props.failureSetBasicAnap(message);
+         this.props.failurePostAnap(message);
+         this.props.failureGetAnap(message);
++        this.props.failureCheckAccount(message);
++        this.props.failureSetBasic(message);
++        this.props.failurePost(message);
++        this.props.failureGet(message);
+         this.props.failureGetCampaign(message);
+         this.props.failureCampaignEntry(message);
+         this.props.failureCampaignCancel(message);
+@@ -222,6 +226,12 @@ class Loading extends React.Component {
+       requestPostAnap,
+       requestGetAnap
+     } = this.props.anap;
++    const {
++      requestCheckAccount,
++      requestSetBasic,
++      requestPost,
++      requestGet,
++    } = this.props.stockholderCampaign;
+     const {
+       requestGetCampaign,
+       requestCampaignEntry,
+@@ -353,6 +363,10 @@ class Loading extends React.Component {
+       requestSetBasicAnap ||
+       requestPostAnap ||
+       requestGetAnap ||
++      requestCheckAccount ||
++      requestSetBasic ||
++      requestPost ||
++      requestGet ||
+       requestGetCampaign ||
+       requestCampaignEntry ||
+       requestCampaignCancel ||
+diff --git a/client/components/Loading/index.jsx b/client/components/Loading/index.jsx
+index 973d194ae..3241b5ea0 100644
+--- a/client/components/Loading/index.jsx
++++ b/client/components/Loading/index.jsx
+@@ -87,6 +87,12 @@ import {
+   failurePostAnap,
+   failureGetAnap
+ } from "../../actions/anap";
++import {
++  failureCheckAccount,
++  failureSetBasic,
++  failurePost,
++  failureGet,
++} from "../../actions/stockholderCampaign";
+ import {
+   failureGetCampaign,
+   failureCampaignEntry,
+@@ -176,6 +182,7 @@ export function mapStateToProps({
+   gumi,
+   convano,
+   anap,
++  stockholderCampaign,
+   campaign,
+   stakingRewards,
+   trustdock,
+@@ -205,6 +212,7 @@ export function mapStateToProps({
+     gumi,
+     convano,
+     anap,
++    stockholderCampaign,
+     campaign,
+     stakingRewards,
+     trustdock,
+@@ -393,6 +401,18 @@ export function mapDispatchToProps(dispatch) {
+     failureGetAnap(params, redirect) {
+       dispatch(failureGetAnap(params, redirect));
+     },
++    failureCheckAccount(params, redirect) {
++      dispatch(failureCheckAccount(params, redirect));
++    },
++    failureSetBasic(params, redirect) {
++      dispatch(failureSetBasic(params, redirect));
++    },
++    failurePost(params, redirect) {
++      dispatch(failurePost(params, redirect));
++    },
++    failureGet(params, redirect) {
++      dispatch(failureGet(params, redirect));
++    },
+     failureGetCampaign(params, redirect) {
+       dispatch(failureGetCampaign(params, redirect));
+     },
+diff --git a/client/constants/stockholderCampaign.js b/client/constants/stockholderCampaign.js
+new file mode 100644
+index 000000000..773136f26
+--- /dev/null
++++ b/client/constants/stockholderCampaign.js
+@@ -0,0 +1,41 @@
++// 共通
++export const INPUT_FORM = "STOCKHOLDER_CAMPAIGN_INPUT_FORM";
++export const RESET_FLAGS = "STOCKHOLDER_CAMPAIGN_RESET_FLAGS";
++
++// 申込可否チェック
++export const REQUEST_CHECK_ACCOUNT = "STOCKHOLDER_CAMPAIGN_REQUEST_CHECK_ACCOUNT";
++export const FAILURE_CHECK_ACCOUNT = "STOCKHOLDER_CAMPAIGN_FAILURE_CHECK_ACCOUNT";
++export const SUCCESS_CHECK_ACCOUNT = "STOCKHOLDER_CAMPAIGN_SUCCESS_CHECK_ACCOUNT";
++
++// 入力値チェック
++export const REQUEST_SET_BASIC = "STOCKHOLDER_CAMPAIGN_REQUEST_SET_BASIC";
++export const FAILURE_SET_BASIC = "STOCKHOLDER_CAMPAIGN_FAILURE_SET_BASIC";
++export const SUCCESS_SET_BASIC = "STOCKHOLDER_CAMPAIGN_SUCCESS_SET_BASIC";
++
++// 申込み
++export const REQUEST_POST = "STOCKHOLDER_CAMPAIGN_REQUEST_POST";
++export const FAILURE_POST = "STOCKHOLDER_CAMPAIGN_FAILURE_POST";
++export const SUCCESS_POST = "STOCKHOLDER_CAMPAIGN_SUCCESS_POST";
++
++// 申込済みデータ取得
++export const REQUEST_GET = "STOCKHOLDER_CAMPAIGN_REQUEST_GET";
++export const FAILURE_GET = "STOCKHOLDER_CAMPAIGN_FAILURE_GET";
++export const SUCCESS_GET = "STOCKHOLDER_CAMPAIGN_SUCCESS_GET";
++
++/**
++ * キャンペーン別バリデーションスキーマ定義
++ * 各キャンペーンがどのfieldを、どのvalidatorで検証するかを定義
++ */
++export const CAMPAIGN_VALIDATION_SCHEMAS = {
++  sbiLeasing: {
++    fields: [
++      { key: "couponId", validator: "validateSbiLeasingCouponId" },
++      { key: "couponCode", validator: "validateSbiLeasingCouponCode" },
++      { key: "linkDocumentCheck1", validator: "validateLinkDocumentCheck" },
++      { key: "linkDocumentCheck2", validator: "validateLinkDocumentCheck" },
++      { key: "linkDocumentCheck3", validator: "validateLinkDocumentCheck" },
++      { key: "linkDocumentCheck4", validator: "validateLinkDocumentCheck" },
++      { key: "approvedCheck", validator: "validateApprovedCheck" },
++    ],
++  },
++};
+diff --git a/client/reducers/index.js b/client/reducers/index.js
+index 173a13c74..49e09052c 100644
+--- a/client/reducers/index.js
++++ b/client/reducers/index.js
+@@ -13,6 +13,7 @@ import metaplanet from "../reducers/metaplanet";
+ import gumi from "../reducers/gumi"
+ import convano from "../reducers/convano"
+ import anap from "../reducers/anap"
++import stockholderCampaign from "../reducers/stockholderCampaign"
+ import integrate from "../reducers/integrate";
+ import campaign from "../reducers/campaign";
+ import flr from "../reducers/flr";
+@@ -42,6 +43,7 @@ const reducers = combineReducers({
+   gumi,
+   convano,
+   anap,
++  stockholderCampaign,
+   integrate,
+   campaign,
+   flr,
+diff --git a/client/reducers/stockholderCampaign.js b/client/reducers/stockholderCampaign.js
+new file mode 100644
+index 000000000..78c93d77d
+--- /dev/null
++++ b/client/reducers/stockholderCampaign.js
+@@ -0,0 +1,217 @@
++import * as cc from "../constants/validate";
++import * as c from "../constants/stockholderCampaign";
++import {
++  REQUEST_GET_SESSION,
++  FAILURE_GET_SESSION,
++  SUCCESS_GET_SESSION,
++} from "../constants/session";
++import { deleteProperty } from "../utils/object";
++
++const initialState = {
++  requestGetSession: null,
++  requestCheckAccount: null,
++  requestSetBasic: null,
++  requestPost: null,
++  requestGet: null,
++
++  // APIレスポンス：キャンペーン情報
++  campaignName: "",
++  entryCodeLabel: "",
++  entryPasswordLabel: "",
++  accountType: null,
++
++  // キャンペーン固有フィールド
++  formData: {},
++  // 確認・参照画面用
++  mainEmail: "",
++  fullName: "",
++  updateDatetime: "",
++  registeredMsg: "",
++
++  env: null, // 環境(prod, stg1, stg2, dev)
++  confirmModalVisibility: false,
++  clientError: {},
++  serverError: {},
++};
++
++export default function stockholderCampaign(state = initialState, action) {
++  switch (action.type) {
++    // セッション取得
++    case REQUEST_GET_SESSION:
++      return {
++        ...state,
++        requestGetSession: true,
++      };
++    case SUCCESS_GET_SESSION:
++      if (action.payload === undefined) {
++        return {
++          ...state,
++          requestGetSession: false,
++        };
++      }
++      return {
++        ...state,
++        requestGetSession: false,
++        formData: {
++          ...state.formData,
++          ...action.payload,
++        },
++      };
++    case FAILURE_GET_SESSION:
++      return {
++        ...state,
++        requestGetSession: false,
++      };
++
++    // フォーム入力
++    case c.INPUT_FORM:
++      return {
++        ...state,
++        formData: {
++          ...state.formData,
++          [action.payload.key]: action.payload.value,
++        },
++      };
++
++    // バリデーション
++    case cc.VALIDATE_BASIC:
++      if (action.payload.result) {
++        return {
++          ...state,
++          clientError: deleteProperty(action.payload.key, state.clientError),
++        };
++      }
++      return {
++        ...state,
++        clientError: {
++          ...state.clientError,
++          [action.payload.key]: action.payload.message,
++        },
++      };
++
++    // 申込可否チェック
++    case c.REQUEST_CHECK_ACCOUNT:
++      return {
++        ...state,
++        requestCheckAccount: true,
++      };
++    case c.FAILURE_CHECK_ACCOUNT:
++      if (action.payload.res === null) {
++        return {
++          ...state,
++          requestCheckAccount: false,
++        };
++      }
++      return {
++        ...state,
++        requestCheckAccount: false,
++        serverError: {
++          ...action.payload.res,
++          httpStatus: action.payload.status,
++        },
++      };
++    case c.SUCCESS_CHECK_ACCOUNT:
++      return {
++        ...state,
++        requestCheckAccount: false,
++        campaignName: action.payload.campaignName,
++        entryCodeLabel: action.payload.entryCodeLabel,
++        entryPasswordLabel: action.payload.entryPasswordLabel,
++        accountType: action.payload.accountType,
++      };
++
++    // 入力値チェック
++    case c.REQUEST_SET_BASIC:
++      return {
++        ...state,
++        requestSetBasic: true,
++      };
++    case c.FAILURE_SET_BASIC:
++      if (action.payload.res === null) {
++        return {
++          ...state,
++          requestSetBasic: false,
++        };
++      }
++      return {
++        ...state,
++        requestSetBasic: false,
++        serverError: {
++          ...action.payload.res,
++          httpStatus: action.payload.status,
++        },
++      };
++    case c.SUCCESS_SET_BASIC:
++      return {
++        ...state,
++        requestSetBasic: false,
++        mainEmail: action.payload.mainEmail,
++        fullName: action.payload.fullName,
++      };
++
++    // 申込み
++    case c.REQUEST_POST:
++      return {
++        ...state,
++        requestPost: true,
++      };
++    case c.FAILURE_POST:
++      return {
++        ...state,
++        requestPost: false,
++        serverError: action.payload.res,
++      };
++    case c.SUCCESS_POST:
++      return {
++        ...state,
++        requestPost: false,
++      };
++
++    // 申込済みデータ取得
++    case c.REQUEST_GET:
++      return {
++        ...state,
++        requestGet: true,
++      };
++    case c.FAILURE_GET:
++      if (action.payload.res === null) {
++        return {
++          ...state,
++          requestGet: false,
++        };
++      }
++      return {
++        ...state,
++        requestGet: false,
++        serverError: {
++          ...action.payload.res,
++          httpStatus: action.payload.status,
++        },
++      };
++    case c.SUCCESS_GET:
++      return {
++        ...state,
++        requestGet: false,
++        registeredMsg: action.payload.registeredMsg,
++        entryCodeLabel: action.payload.entryCodeLabel,
++        entryPasswordLabel: action.payload.entryPasswordLabel,
++        formData: {
++          ...state.formData,
++          ...action.payload.formData,
++        },
++        fullName: action.payload.fullName,
++        updateDatetime: action.payload.updateDatetime,
++      };
++
++    // リセット
++    case c.RESET_FLAGS:
++      return {
++        ...initialState,
++        env: state.env,
++        confirmModalVisibility: false,
++      };
++
++    default:
++      return state;
++  }
++}
+diff --git a/server/api.js b/server/api.js
+index 1adbdce2a..2b24335d5 100644
+--- a/server/api.js
++++ b/server/api.js
+@@ -85,6 +85,12 @@ router.post('/invitation/mail/code_use', require('./functions/post_invitation_em
+ 
+ router.get('/mynaone/url', require('./functions/get_mynum_url'));
+ 
++// 株主優待共通
++router.get('/stockholder_bonus_entry/account_check', require('./functions/stockholder_bonus_entry_account_check'));
++router.post('/stockholder_bonus_entry/entry_check', require('./functions/stockholder_bonus_entry_entry_check'));
++router.post('/stockholder_bonus_entry', require('./functions/stockholder_bonus_entry_registration'));
++router.get('/stockholder_bonus_entry', require('./functions/stockholder_bonus_entry_get'));
++
+ router.get('/sbih_stock/account_check', require('./functions/sbih_account_check'));
+ router.get('/sbih_stock/entry_check', require('./functions/sbih_entry_check'));
+ router.post('/sbih_stock', require('./functions/sbih_registration'));
+diff --git a/server/functions/stockholder_bonus_entry_account_check.js b/server/functions/stockholder_bonus_entry_account_check.js
+new file mode 100644
+index 000000000..e605b14d5
+--- /dev/null
++++ b/server/functions/stockholder_bonus_entry_account_check.js
+@@ -0,0 +1,32 @@
++const request = require("../helper/http_request");
++const getSession = require("../helper/get_session");
++
++module.exports = async (req, res) => {
++  const { accountId } = getSession(req);
++  if (!accountId) {
++    res.status(403);
++    return res.json({ message: 'ログインしてください' });
++  }
++
++  const { campaignName, term } = req.query;
++  request(req, 'GET', `/stockholder_bonus_entry/${campaignName}/${term}/${accountId}/account_check`)
++    .then(apiRes => res.json({}))
++    .catch((error) => {
++      const statusCode = error.statusCode;
++      const errorObj = JSON.parse(error.error);
++      const errorCode = errorObj.error;
++      const message = errorObj.message;
++
++      // 1004 : 「サーバーエラーが発生しました。お手数ですが、サポートにお問い合わせください。"
++      // 4074 : 「開催中の株主優待ではありません。」
++      // 4075 : 「本キャンペーンは個人口座向けです。」
++      // 4076 : 「お客様は口座開設未完了です、手続きを進めてください。」
++      // 4077 : 「お客様はすでに{0}をお申込み済みです。{0}は1口座あたり1回までとなっております。」
++      if (statusCode === 400 && (errorCode === 1004 || (4074 <= errorCode && errorCode <= 4077))) {
++        res.status(400);
++        return res.json({ message, direct: true });
++      }
++      res.status(400);
++      res.json({ message });
++    });
++};
+diff --git a/server/functions/stockholder_bonus_entry_entry_check.js b/server/functions/stockholder_bonus_entry_entry_check.js
+new file mode 100644
+index 000000000..d885ed4dc
+--- /dev/null
++++ b/server/functions/stockholder_bonus_entry_entry_check.js
+@@ -0,0 +1,31 @@
++const request = require("../helper/http_request");
++const getSession = require("../helper/get_session");
++
++module.exports = async (req, res) => {
++  const { accountId } = getSession(req);
++  if (!accountId) {
++    res.status(403);
++    return res.json({ message: 'ログインしてください' });
++  }
++
++  const { campaignName, term } = req.query;
++  request(req, 'POST', `/stockholder_bonus_entry/${campaignName}/${term}/${accountId}/entry_check`, req.body)
++    .then(apiRes => res.json(JSON.parse(apiRes.body)))
++    .catch((error) => {
++      const statusCode = error.statusCode;
++      const errorObj = JSON.parse(error.error);
++      const errorCode = errorObj.error;
++      const message = errorObj.message;
++
++      // 4074 : 「開催中の株主優待ではありません。」
++      // 4078 : 「お申込み受付期間外です。」
++      // 4079 : 「※{0}または{1}が不一致です。再度入力をお願いします。」
++      // 4080 : 「入力された{0}、{1}はすでにお申込み済です。」
++      if (statusCode === 400 && (errorCode === 4074 || (4078 <= errorCode && errorCode <= 4080))) {
++        res.status(400);
++        return res.json({ message, direct: true });
++      }
++      res.status(400);
++      res.json({ message });
++    });
++};
+diff --git a/server/functions/stockholder_bonus_entry_get.js b/server/functions/stockholder_bonus_entry_get.js
+new file mode 100644
+index 000000000..afe297cf9
+--- /dev/null
++++ b/server/functions/stockholder_bonus_entry_get.js
+@@ -0,0 +1,28 @@
++const request = require("../helper/http_request");
++const getSession = require("../helper/get_session");
++
++module.exports = async (req, res) => {
++  const { accountId } = getSession(req);
++  if (!accountId) {
++    res.status(403);
++    return res.json({ message: 'ログインしてください' });
++  }
++
++  const { campaignName, term } = req.query;
++  request(req, 'GET', `/stockholder_bonus_entry/${campaignName}/${term}/${accountId}`)
++    .then(apiRes => res.json(JSON.parse(apiRes.body)))
++    .catch((error) => {
++      const statusCode = error.statusCode;
++      const errorObj = JSON.parse(error.error);
++      const errorCode = errorObj.error;
++      const message = errorObj.message;
++
++      // 4074 : 「開催中の株主優待ではありません。」
++      if (statusCode === 400 && errorCode === 4074) {
++        res.status(400);
++        return res.json({ message, direct: true });
++      }
++      res.status(400);
++      res.json({ message });
++    });
++};
+diff --git a/server/functions/stockholder_bonus_entry_registration.js b/server/functions/stockholder_bonus_entry_registration.js
+new file mode 100644
+index 000000000..aebb402fd
+--- /dev/null
++++ b/server/functions/stockholder_bonus_entry_registration.js
+@@ -0,0 +1,33 @@
++const request = require("../helper/http_request");
++const getSession = require("../helper/get_session");
++
++module.exports = async (req, res) => {
++  const { accountId } = getSession(req);
++  if (!accountId) {
++    res.status(403);
++    return res.json({ message: 'ログインしてください' });
++  }
++
++  const { campaignName, term } = req.query;
++  request(req, "POST", `/stockholder_bonus_entry/${campaignName}/${term}/${accountId}`, req.body)
++    .then(() => {
++      req.session.value = {};
++      return res.json({}).end();
++    })
++    .catch((error) => {
++      const statusCode = error.statusCode;
++      const errorObj = JSON.parse(error.error);
++      const errorCode = errorObj.error;
++      const message = errorObj.message;
++
++      // 1004 : 「サーバーエラーが発生しました。お手数ですが、サポートにお問い合わせください。"
++      // 4074 : 「開催中の株主優待ではありません。」
++      // 4075 : 「本キャンペーンは個人口座向けです。」
++      if (statusCode === 400 && (errorCode === 1004 || errorCode === 4074 || errorCode === 4075)) {
++        res.status(400);
++        return res.json({ message, direct: true });
++      }
++      res.status(400);
++      res.json({ message });
++    });
++};

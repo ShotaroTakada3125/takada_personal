@@ -1,0 +1,44 @@
+* ログイン関連
+** ログイン:/cccmdipresen/gw/login event:login
+** 2要素認証ログイン:/cccmdipresen/gw/loginSecondAuth event:loginSecondAuth
+
+* 2要素認証/再設定
+** 2要素認証設定:/cccmdipresen/gw/accountOpenSystem event:setTOTPAuthStatus
+** 2要素認証設定:/cccmdipresen/gw/trade event:setTOTPAuthStatus
+** 2要素認証設定変更:/cccmdipresen/gw/accountOpenSystem event:changeAuthType
+** 2要素認証設定変更:/cccmdipresen/gw/trade event:changeAuthType
+
+* SMS送信
+** ログイン時のSMS再送信:/cccmdipresen/gw/sms event:sendSmsNotice
+** ログイン後のSMS再送信:/cccmdipresen/gw/trade event:sendSmsNotice
+
+* CRM SSO
+** CRM機能ログインURL取得:/cccmdipresen/gw/trade event:getCrmLoginUrl
+
+* パスキー関連
+** ログイン関連（認証前アクセス可能）
+*** 認証開始（Challenge取得）:/cccmdipresen/gw/initiateLoginWithPasskey event:initiateLoginWithPasskey
+*** 認証検証（ログイン実行）:/cccmdipresen/gw/loginWithPasskey event:loginWithPasskey
+** 登録・管理関連（認証後のみアクセス可能）
+*** 本人確認・2要素認証ステータス取得:/cccmdipresen/gw/trade event:getAuthStatus
+*** 登録初期化（メール送信）:/cccmdipresen/gw/trade event:initiatePasskeyRegistration
+*** メール認証:/cccmdipresen/gw/trade event:authMailForPasskeyRegistration
+*** 2FA認証 & 登録オプション取得:/cccmdipresen/gw/trade event:authSecondCodeForPasskeyRegistration
+*** パスキー登録完了:/cccmdipresen/gw/trade event:registerPasskey
+*** 一覧取得:/cccmdipresen/gw/trade event:getPasskeyList
+*** 名称変更:/cccmdipresen/gw/trade event:editPasskeyLabel
+*** 削除:/cccmdipresen/gw/trade event:deletePasskey
+*** 推奨表示判定:/cccmdipresen/gw/trade event:getPasskeyRecommendation
+*** 推奨非表示設定:/cccmdipresen/gw/trade event:snoozePasskeyRecommendation
+
+
+* GA/SMS 認証チェック
+** GA認証:/cccmdipresen/gw/accountOpenSystem event:sendGaAuthCode
+** GA認証:/cccmdipresen/gw/trade event:sendGaAuthCode
+** 2要素認証設定変更後経過時間取得:/cccmdipresen/gw/accountOpenSystem event:getElapsedTimeSinceAuthChanged
+** 2要素認証設定変更後経過時間取得:/cccmdipresen/gw/trade event:getElapsedTimeSinceAuthChanged
+
+
+口座開設システムからSimplex-API(以後 SXI-API)を呼び出す際、リクエストヘッダのXFFにtrue-client-ip（TIP）を詰めて送るように改修する。
+true-client-ipは、CloudflareなどのCDNを通過した後でも本来のエンドユーザのIPアドレスを保持するための値
+具体的には、リクエストヘッダのcf-connecting-ipから取得できるIPアドレスをXFFにセットする

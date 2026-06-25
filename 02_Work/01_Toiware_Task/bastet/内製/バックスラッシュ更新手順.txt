@@ -1,0 +1,50 @@
+# 作業ディレクトリ移動
+mkdir -p ~/report/20260612_datapatch
+cd ~/report/20260612_datapatch
+
+# select 文作成
+cat<<EOF >select.sql
+select * from individual_account where account_id = '14346755';
+EOF
+
+# update 文作成
+cat<<EOF >update.sql
+UPDATE individual_account SET given_name = REPLACE(given_name, '\', '') WHERE account_id = '14346755';
+EOF
+
+# CSVファイルを生成
+../psql-to-csv.sh ../.stg1 select.sql
+# 中身を確認
+less select.csv
+# ファイル名変更
+mv select.csv select.bef.csv
+
+
+#DB接続
+\echo :AUTOCOMMIT
+\pset null '[NULL]'
+\o |tee report.log
+
+begin;
+
+# 更新前状態確認
+\i select.sql
+
+# 更新
+\i update.sql
+
+# 更新後状態確認
+\i select.sql
+
+commit;
+exit
+
+# CSVファイルを生成
+../psql-to-csv.sh ../.stg1 select.sql
+# 中身を確認
+less select.csv
+# ファイル名変更
+mv select.csv select.aft.csv
+
+# 差分確認
+git diff --color-words=. select.bef.csv select.aft.csv

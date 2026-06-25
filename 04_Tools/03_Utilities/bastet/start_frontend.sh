@@ -45,15 +45,15 @@ open_tab "Mockサーバー" "$DIR_MOCK" "TZ='Asia/Tokyo' python -m uvicorn app.m
 # Signup API (バックエンド)
 
 echo "Step3: Signup APIを起動します..."
-open_tab "Signup API" "$DIR_SIGNUP_API" "source .envrc.local && export JAVA_HOME=\$(asdf where java) && ./mvnw clean spring-boot:run -Dspring-boot.run.profiles=dev,ext-stg"
+open_tab "Signup API" "$DIR_SIGNUP_API" "source .envrc.local && source .envrc.local && ./mvnw clean spring-boot:run -Dspring-boot.run.profiles=dev,ext-stg"
 # Signup Frontend (申込画面)
 
 # フロントエンドサーバー
 echo "Step4-1: Frontend Serverを起動します..."
-open_tab "Signup Frontend Server" "$DIR_FRONTEND" "npm run dev:server"
+open_tab "Signup Frontend Server" "$DIR_FRONTEND" "source .envrc.local && npm run dev:server"
 
 # フロントエンドクライアント
 echo "Step4-2: Frontend Clientを起動します..."
-open_tab "Signup Frontend Client" "$DIR_FRONTEND" "npm run dev:front"
+open_tab "Signup Frontend Client" "$DIR_FRONTEND" "source .envrc.local && npm run dev:front"
 
 echo "口座開設フロントのすべての環境が起動しました。"

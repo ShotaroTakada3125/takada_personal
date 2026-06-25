@@ -1,0 +1,105 @@
+# Yuinchi への XML 再連携手順
+
+## update
+0. AWSにログインし、CloudShellを開く
+1. BOWのタスクID取得&コピー
+  ```
+aws ecs describe-tasks --cluster s25-signup-cluster --tasks $(aws ecs list-tasks --cluster s25-signup-cluster --query 'taskArns' --output text) --query 'tasks[?containers[?name==`s25-signup-backoffice-container`]].taskArn' --output text | tr '\t' '\n' | awk -F'/' '{print $NF}'
+  ```
+
+2. タスクコンテナにログイン
+  ```
+aws ecs execute-command --cluster s25-signup-cluster --container s25-signup-backoffice-container --interactive --command /bin/sh --task d456cdbb77ea4f1a8eaafa5b4cf801ef
+  ```
+
+3. update_error の確認
+  ```
+aws s3 ls s3://yuinchi-stg1-account-info/0022/export/update_error/ --endpoint-url https://bucket.vpce-03d2bf293de1d80ba-0a82kjq0.s3.ap-northeast-1.vpce.amazonaws.com | grep 10928272
+  ```
+
+4. updateファイルの再連携
+  - lambda(s25-signup-portal-xml-exporter)を開く
+  - テストタブに移動
+  - 引数に以下をセット（イベント名は任意）  
+  ```
+{
+  "accountId": "10928272"
+}
+  ```
+  - 「テスト」ボタン押下で実行
+
+5. update_success の確認（スクショをエビデンスとする）
+  ```
+aws s3 ls s3://yuinchi-stg1-account-info/0022/export/update_success/ --endpoint-url https://bucket.vpce-03d2bf293de1d80ba-0a82kjq0.s3.ap-northeast-1.vpce.amazonaws.com | grep 10928272
+  ```
+
+
+
+
+## temp
+0. AWSにログインし、CloudShellを開く
+1. BOWのタスクID取得&コピー
+  ```
+aws ecs describe-tasks --cluster s25-signup-cluster --tasks $(aws ecs list-tasks --cluster s25-signup-cluster --query 'taskArns' --output text) --query 'tasks[?containers[?name==`s25-signup-backoffice-container`]].taskArn' --output text | tr '\t' '\n' | awk -F'/' '{print $NF}'
+  ```
+
+2. タスクコンテナにログイン
+  ```
+aws ecs execute-command --cluster s25-signup-cluster --container s25-signup-backoffice-container --interactive --command /bin/sh --task ＜前手順でコピーしたタスクID＞
+  ```
+
+3. temp_error の確認
+  ```
+aws s3 ls s3://yuinchi-stg1-account-info/0022/export/temp_error/ --endpoint-url https://bucket.vpce-03d2bf293de1d80ba-0a82kjq0.s3.ap-northeast-1.vpce.amazonaws.com | grep ＜連携された口座番号＞
+  ```
+
+4. temp XML のコピー
+  ```
+aws s3 cp s3://yuinchi-stg1-account-info/0022/export/temp_error/TEMP_ACCOUNT_59331113.json s3://yuinchi-stg1-account-info/0022/export/temp/ --endpoint-url https://bucket.vpce-03d2bf293de1d80ba-0a82kjq0.s3.ap-northeast-1.vpce.amazonaws.com
+  ```
+
+5. temp の確認
+  ```
+aws s3 ls s3://yuinchi-stg1-account-info/0022/export/temp/ --endpoint-url https://bucket.vpce-03d2bf293de1d80ba-0a82kjq0.s3.ap-northeast-1.vpce.amazonaws.com | grep ＜連携された口座番号＞
+  ```
+
+6. temp_success の確認（スクショをエビデンスとする）
+  ```
+aws s3 ls s3://yuinchi-stg1-account-info/0022/export/temp_success/ --endpoint-url https://bucket.vpce-03d2bf293de1d80ba-0a82kjq0.s3.ap-northeast-1.vpce.amazonaws.com | grep ＜連携された口座番号＞
+  ```
+
+
+
+
+
+## register
+0. AWSにログインし、CloudShellを開く
+1. BOWのタスクID取得&コピー
+  ```
+aws ecs describe-tasks --cluster s25-signup-cluster --tasks $(aws ecs list-tasks --cluster s25-signup-cluster --query 'taskArns' --output text) --query 'tasks[?containers[?name==`s25-signup-backoffice-container`]].taskArn' --output text | tr '\t' '\n' | awk -F'/' '{print $NF}'
+  ```
+
+2. タスクコンテナにログイン
+  ```
+aws ecs execute-command --cluster s25-signup-cluster --container s25-signup-backoffice-container --interactive --command /bin/sh --task ＜前手順でコピーしたタスクID＞
+  ```
+
+3. register_error の確認
+  ```
+aws s3 ls s3://yuinchi-stg1-account-info/0022/export/register_error/ --endpoint-url https://bucket.vpce-03d2bf293de1d80ba-0a82kjq0.s3.ap-northeast-1.vpce.amazonaws.com | grep ＜連携された口座番号＞
+  ```
+
+4. register XML のコピー
+  ```
+aws s3 cp s3://yuinchi-stg1-account-info/0022/export/register_error/INDIVIDUAL_ACCOUNT_REGISTER_24451562.xml s3://yuinchi-stg1-account-info/0022/export/register/ --endpoint-url https://bucket.vpce-03d2bf293de1d80ba-0a82kjq0.s3.ap-northeast-1.vpce.amazonaws.com
+  ```
+
+5. register の確認
+  ```
+aws s3 ls s3://yuinchi-stg1-account-info/0022/export/register/ --endpoint-url https://bucket.vpce-03d2bf293de1d80ba-0a82kjq0.s3.ap-northeast-1.vpce.amazonaws.com | grep ＜連携された口座番号＞
+  ```
+
+6. register_success の確認（スクショをエビデンスとする）
+  ```
+aws s3 ls s3://yuinchi-stg1-account-info/0022/export/register_success/ --endpoint-url https://bucket.vpce-03d2bf293de1d80ba-0a82kjq0.s3.ap-northeast-1.vpce.amazonaws.com | grep ＜連携された口座番号＞
+  ```

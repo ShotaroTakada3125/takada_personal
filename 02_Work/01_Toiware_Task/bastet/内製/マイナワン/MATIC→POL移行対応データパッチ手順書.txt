@@ -1,0 +1,140 @@
+##
+# 2026/6/3 【MATIC->POL移行】データパッチ手順書
+#
+
+# 踏み台サーバー(EC2 p25-signup-bastion-instance) にログインする
+
+# ~~ ここから、踏み台サーバー (EC2) 上で操作 ~~
+bash #bashで作業する
+mkdir -p ~/report/20260610_datapatch-for-pol-support
+cd ~/report/20260610_datapatch-for-pol-support
+
+# SQLファイル作成
+cat<<EOF >select_currency.sql
+select * from currency order by sort_order;
+EOF
+
+cat<<EOF >select_target_pub.sql
+select account_id from insider where publisher_or_manager_currencies like '%MATIC%';
+EOF
+
+cat<<EOF >select_target_other.sql
+select account_id from insider where others_currencies like '%MATIC%';
+EOF
+
+# 対象抽出クエリ実
+../psql-to-csv.sh ../.prod select_target_pub.sql
+../psql-to-csv.sh ../.prod select_target_other.sql
+
+# 口座番号リストの作成
+cat select_target_pub.csv > accountId_list.csv
+cat select_target_other.csv >> accountId_list.csv
+sort accountId_list.csv | uniq > accountId_list.sort.csv
+vi accountId_list.sort.csv
+
+# accountId の削除
+:g/account_id/d
+# ''で囲う
+:%s/.*/'&',/
+# 最後の行の , を削除
+:$s/,$//
+:wq
+
+# select_target_pub の口座番号リストの作成
+cat select_target_pub.csv > accountId_pub_list.csv
+Vi accountId_pub_list.csv
+
+# accountId の削除
+:g/account_id/d
+# ''で囲う
+:%s/.*/'&',/
+# 最後の行の , を削除
+:$s/,$//
+:wq
+
+# select_target_other の口座番号リストの作成
+cat select_target_other.csv > accountId_other_list.csv
+vi accountId_pub_list.csv
+
+# accountId の削除
+:g/account_id/d
+# ''で囲う
+:%s/.*/'&',/
+# 最後の行の , を削除
+:$s/,$//
+:wq
+
+# 比較用クエリ作成
+cat <<EOF >select.sql
+select distinct * from insider where account_id in (
+$(cat accountId_list.sort.csv)
+) order by account_id;
+EOF
+cat select.sql
+
+../psql-to-csv.sh ../.prod select.sql
+less select.csv   #中身確認
+mv select.csv select.bef.csv
+
+# 更新クエリ作成 
+cat <<EOF >update_pub.sql
+update insider set publisher_or_manager_currencies = array_to_string(array_replace(string_to_array(publisher_or_manager_currencies,'|'),'MATIC','POL'),'|') where account_id in (
+$(cat accountId_pub_list.csv)
+);
+EOF
+cat update_pub.sql
+
+cat <<EOF >update_other.sql
+update insider set others_currencies = array_to_string(array_replace(string_to_array(others_currencies,'|'),'MATIC','POL'),'|') where account_id in (
+$(cat accountId_other_list.csv)
+);
+EOF
+cat update_other.sql
+
+# currencyテーブル情報抽出
+../psql-to-csv.sh ../.prod select_currency.sql
+mv select_currency.csv select_currency.bef.csv
+
+# currencyテーブルを最新化
+# ~~ ここから、lambda操作 ~~
+# バッチ[p25-signup-currency-data-sync] をスポット実行 #正常終了すること
+# ~~ lambda操作ここまで ~~
+
+# lambdaの結果確認
+../psql-to-csv.sh ../.prod select_currency.sql
+mv select_currency.csv select_currency.aft.csv
+gitdiff　select_currency.bef.csv select_currency.aft.csv #差分が想定通りであること
+
+# データパッチ開始
+psql -d xxxx
+
+# ~~ ここから、psql操作 ~~
+
+#>\echo :AUTOCOMMIT
+#>\pset null '[NULL]'
+#>\o |tee report.log
+#>
+#>\i select_currency.sql; --マスタがPOLになってるか再確認
+#>select count(*) from insider where publisher_or_manager_currencies like '%MATIC%' or others_currencies like '%MATIC%';
+#>\i select.sql;
+#>\i update_pub.sql;
+#>\i update_other.sql;
+#>\i select.sql; --目視確認し、データパッチの値が反映されていること
+#>select count(*) from insider where publisher_or_manager_currencies like '%MATIC%' or others_currencies like '%MATIC%'; --0件になってる事
+#>commit;
+#>exit
+
+# ~~ psql操作ここまで ~~
+
+# データパッチ結果確認
+../psql-to-csv.sh ../.prod select.sql
+mv select.csv select.aft.csv
+gitdiff select.bef.csv select.aft.csv   #差分が想定通りであること
+
+# 差分を明らかにしたい場合
+git diff --color-words='[A-Za-z]+' select.bef.csv select.aft.csv
+diff -u <(sed 's/MATIC/POL/g' select.bef.csv) select.aft.csv
+
+exit
+
+# ~~ 踏み台サーバー (EC2) 操作ここまで ~~
