@@ -7,12 +7,13 @@ ISSUE_CMD="$SCRIPT_DIR/issue_prod_access"
 usage() {
   cat <<'EOF'
 Usage:
-  ./issue_prod_access_month YYYYMM [--dry-run] [--skip-weeks N]
+  ./issue_prod_access_month YYYYMM [--start-date YYYYMMDD] [--dry-run]
 
 Examples:
   ./issue_prod_access_month 202606
+  ./issue_prod_access_month 202606 --start-date 20260609
   ./issue_prod_access_month 202606 --dry-run
-  ./issue_prod_access_month 202606 --skip-weeks 1
+  ./issue_prod_access_month 202606 --start-date 20260609 --dry-run
 
 Description:
   For the specified month, this script generates week-by-week business ranges
@@ -20,7 +21,6 @@ Description:
     ./issue_prod_access START_DATE END_DATE
 
   Dates are passed as YYYYMMDD.
-  --skip-weeks lets you skip already processed first N ranges.
 EOF
 }
 
@@ -31,7 +31,7 @@ fi
 
 TARGET_MONTH="$1"
 DRY_RUN=false
-SKIP_WEEKS=0
+START_DATE=""
 
 shift
 while [[ $# -gt 0 ]]; do
@@ -40,13 +40,13 @@ while [[ $# -gt 0 ]]; do
       DRY_RUN=true
       shift
       ;;
-    --skip-weeks)
+    --start-date)
       if [[ $# -lt 2 ]]; then
-        echo "Missing value for --skip-weeks" >&2
+        echo "Missing value for --start-date" >&2
         usage
         exit 1
       fi
-      SKIP_WEEKS="$2"
+      START_DATE="$2"
       shift 2
       ;;
     *)
@@ -62,8 +62,8 @@ if [[ ! "$TARGET_MONTH" =~ ^[0-9]{6}$ ]]; then
   exit 1
 fi
 
-if [[ ! "$SKIP_WEEKS" =~ ^[0-9]+$ ]]; then
-  echo "Invalid value for --skip-weeks: $SKIP_WEEKS (expected non-negative integer)" >&2
+if [[ -n "$START_DATE" && ! "$START_DATE" =~ ^[0-9]{8}$ ]]; then
+  echo "Invalid start-date format: $START_DATE (expected YYYYMMDD)" >&2
   exit 1
 fi
 
@@ -72,19 +72,37 @@ if [[ ! -x "$ISSUE_CMD" ]]; then
   exit 1
 fi
 
-python3 - "$TARGET_MONTH" <<'PY' | while read -r start_date end_date; do
+python3 - "$TARGET_MONTH" "$START_DATE" <<'PY' | while read -r start_date end_date; do
 import calendar
 import datetime as dt
 import sys
 
 ym = sys.argv[1]
+start_date_arg = sys.argv[2]
 year = int(ym[:4])
 month = int(ym[4:6])
 
 first_day = dt.date(year, month, 1)
 last_day = dt.date(year, month, calendar.monthrange(year, month)[1])
 
-current = first_day
+if start_date_arg:
+  try:
+    start_from = dt.datetime.strptime(start_date_arg, "%Y%m%d").date()
+  except ValueError:
+    raise SystemExit(f"Invalid start-date value: {start_date_arg} (expected valid YYYYMMDD)")
+
+  if start_from < first_day or start_from > last_day:
+    raise SystemExit(
+      f"start-date {start_date_arg} is outside target month {ym}"
+    )
+else:
+  start_from = first_day
+
+# If start date is on weekend, move to next Monday.
+if start_from.weekday() >= 5:
+  start_from += dt.timedelta(days=(7 - start_from.weekday()))
+
+current = max(first_day, start_from)
 while current <= last_day:
     if current.weekday() >= 5:
         current += dt.timedelta(days=(7 - current.weekday()))
@@ -95,12 +113,6 @@ while current <= last_day:
     print(week_start.strftime("%Y%m%d"), week_end.strftime("%Y%m%d"))
     current = week_end + dt.timedelta(days=1)
 PY
-  if (( SKIP_WEEKS > 0 )); then
-    echo "Skipping: ./issue_prod_access $start_date $end_date"
-    SKIP_WEEKS=$((SKIP_WEEKS - 1))
-    continue
-  fi
-
   echo "Running: ./issue_prod_access $start_date $end_date"
   if [[ "$DRY_RUN" == false ]]; then
     "$ISSUE_CMD" "$start_date" "$end_date"

@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+MONTH_CMD="$SCRIPT_DIR/issue_prod_access_month"
+MEMBERS_FILE="$SCRIPT_DIR/members.csv"
+
+usage() {
+  cat <<'EOF'
+Usage:
+  ./issue_prod_access_month_members YYYYMM [--members-file FILE] [--start-date YYYYMMDD] [--dry-run]
+
+Examples:
+  ./issue_prod_access_month_members 202607
+  ./issue_prod_access_month_members 202607 --start-date 20260706 --dry-run
+  ./issue_prod_access_month_members 202607 --members-file ./members.csv
+
+Description:
+  Runs issue_prod_access_month for all members listed in CSV without rewriting .env.
+  Per member, the script sets environment variables only for that command:
+    REDMINE_AUTHOR_ID
+    REDMINE_AUTHOR_NAME
+
+  CSV format:
+    author_id,author_name
+EOF
+}
+
+if [[ $# -lt 1 ]]; then
+  usage
+  exit 1
+fi
+
+TARGET_MONTH="$1"
+shift
+
+START_DATE=""
+DRY_RUN=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --members-file)
+      if [[ $# -lt 2 ]]; then
+        echo "Missing value for --members-file" >&2
+        usage
+        exit 1
+      fi
+      MEMBERS_FILE="$2"
+      shift 2
+      ;;
+    --start-date)
+      if [[ $# -lt 2 ]]; then
+        echo "Missing value for --start-date" >&2
+        usage
+        exit 1
+      fi
+      START_DATE="$2"
+      shift 2
+      ;;
+    --dry-run)
+      DRY_RUN=true
+      shift
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      usage
+      exit 1
+      ;;
+  esac
+done
+
+if [[ ! "$TARGET_MONTH" =~ ^[0-9]{6}$ ]]; then
+  echo "Invalid month format: $TARGET_MONTH (expected YYYYMM)" >&2
+  exit 1
+fi
+
+if [[ -n "$START_DATE" && ! "$START_DATE" =~ ^[0-9]{8}$ ]]; then
+  echo "Invalid start-date format: $START_DATE (expected YYYYMMDD)" >&2
+  exit 1
+fi
+
+if [[ ! -x "$MONTH_CMD" ]]; then
+  echo "Command not found or not executable: $MONTH_CMD" >&2
+  exit 1
+fi
+
+if [[ ! -f "$MEMBERS_FILE" ]]; then
+  echo "Members file not found: $MEMBERS_FILE" >&2
+  exit 1
+fi
+
+run_count=0
+
+while IFS=, read -r author_id author_name; do
+  author_id="${author_id%$'\r'}"
+  author_name="${author_name%$'\r'}"
+
+  # Skip comments and blank lines.
+  if [[ -z "${author_id// }" || "${author_id:0:1}" == "#" ]]; then
+    continue
+  fi
+
+  if [[ -z "${author_name// }" ]]; then
+    echo "Skipping invalid row (missing author_name): ${author_id},${author_name}" >&2
+    continue
+  fi
+
+  echo "=== Member: ${author_name} (${author_id}) ==="
+
+  cmd=("$MONTH_CMD" "$TARGET_MONTH")
+  if [[ -n "$START_DATE" ]]; then
+    cmd+=("--start-date" "$START_DATE")
+  fi
+  if [[ "$DRY_RUN" == true ]]; then
+    cmd+=("--dry-run")
+  fi
+
+  REDMINE_AUTHOR_ID="$author_id" REDMINE_AUTHOR_NAME="$author_name" "${cmd[@]}"
+  run_count=$((run_count + 1))
+done < "$MEMBERS_FILE"
+
+echo "Completed members: $run_count"
