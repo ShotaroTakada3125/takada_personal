@@ -7,11 +7,13 @@ ISSUE_CMD="$SCRIPT_DIR/issue_prod_access"
 usage() {
   cat <<'EOF'
 Usage:
-  ./issue_prod_access_month YYYYMM [--start-date YYYYMMDD] [--dry-run]
+  ./issue_prod_access_month YYYYMM [--start-date YYYYMMDD] [--exclude-date YYYYMMDD]... [--exclude-file FILE] [--dry-run]
 
 Examples:
   ./issue_prod_access_month 202606
   ./issue_prod_access_month 202606 --start-date 20260609
+  ./issue_prod_access_month 202606 --exclude-date 20260616 --exclude-date 20260630
+  ./issue_prod_access_month 202606 --exclude-file ./holidays.txt
   ./issue_prod_access_month 202606 --dry-run
   ./issue_prod_access_month 202606 --start-date 20260609 --dry-run
 
@@ -32,6 +34,8 @@ fi
 TARGET_MONTH="$1"
 DRY_RUN=false
 START_DATE=""
+EXCLUDE_FILE=""
+EXCLUDE_DATES=()
 
 shift
 while [[ $# -gt 0 ]]; do
@@ -47,6 +51,24 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       START_DATE="$2"
+      shift 2
+      ;;
+    --exclude-date)
+      if [[ $# -lt 2 ]]; then
+        echo "Missing value for --exclude-date" >&2
+        usage
+        exit 1
+      fi
+      EXCLUDE_DATES+=("$2")
+      shift 2
+      ;;
+    --exclude-file)
+      if [[ $# -lt 2 ]]; then
+        echo "Missing value for --exclude-file" >&2
+        usage
+        exit 1
+      fi
+      EXCLUDE_FILE="$2"
       shift 2
       ;;
     *)
@@ -67,29 +89,76 @@ if [[ -n "$START_DATE" && ! "$START_DATE" =~ ^[0-9]{8}$ ]]; then
   exit 1
 fi
 
+for excluded in "${EXCLUDE_DATES[@]:-}"; do
+  if [[ -n "$excluded" && ! "$excluded" =~ ^[0-9]{8}$ ]]; then
+    echo "Invalid exclude-date format: $excluded (expected YYYYMMDD)" >&2
+    exit 1
+  fi
+done
+
+if [[ -n "$EXCLUDE_FILE" && ! -f "$EXCLUDE_FILE" ]]; then
+  echo "Exclude file not found: $EXCLUDE_FILE" >&2
+  exit 1
+fi
+
 if [[ ! -x "$ISSUE_CMD" ]]; then
   echo "Command not found or not executable: $ISSUE_CMD" >&2
   exit 1
 fi
 
-python3 - "$TARGET_MONTH" "$START_DATE" <<'PY' | while read -r start_date end_date; do
+EXCLUDE_DATES_JOINED=""
+if [[ ${#EXCLUDE_DATES[@]} -gt 0 ]]; then
+  EXCLUDE_DATES_JOINED="$(IFS=,; echo "${EXCLUDE_DATES[*]}")"
+fi
+
+python3 - "$TARGET_MONTH" "$START_DATE" "$EXCLUDE_DATES_JOINED" "$EXCLUDE_FILE" <<'PY' | while read -r start_date end_date; do
 import calendar
 import datetime as dt
 import sys
 
 ym = sys.argv[1]
 start_date_arg = sys.argv[2]
+exclude_dates_arg = sys.argv[3]
+exclude_file_arg = sys.argv[4]
 year = int(ym[:4])
 month = int(ym[4:6])
 
 first_day = dt.date(year, month, 1)
 last_day = dt.date(year, month, calendar.monthrange(year, month)[1])
 
-if start_date_arg:
+def parse_date(value: str, label: str) -> dt.date:
   try:
-    start_from = dt.datetime.strptime(start_date_arg, "%Y%m%d").date()
+    return dt.datetime.strptime(value, "%Y%m%d").date()
   except ValueError:
-    raise SystemExit(f"Invalid start-date value: {start_date_arg} (expected valid YYYYMMDD)")
+    raise SystemExit(f"Invalid {label} value: {value} (expected valid YYYYMMDD)")
+
+excluded_days = set()
+if exclude_dates_arg:
+  for raw in exclude_dates_arg.split(","):
+    raw = raw.strip()
+    if not raw:
+      continue
+    day = parse_date(raw, "exclude-date")
+    if day < first_day or day > last_day:
+      raise SystemExit(f"exclude-date {raw} is outside target month {ym}")
+    excluded_days.add(day)
+
+if exclude_file_arg:
+  try:
+    with open(exclude_file_arg, encoding="utf-8") as f:
+      for line in f:
+        raw = line.strip()
+        if not raw or raw.startswith("#"):
+          continue
+        day = parse_date(raw, "exclude-file")
+        if day < first_day or day > last_day:
+          raise SystemExit(f"exclude-file date {raw} is outside target month {ym}")
+        excluded_days.add(day)
+  except OSError as e:
+    raise SystemExit(f"Failed to read exclude file: {e}")
+
+if start_date_arg:
+  start_from = parse_date(start_date_arg, "start-date")
 
   if start_from < first_day or start_from > last_day:
     raise SystemExit(
@@ -102,16 +171,30 @@ else:
 if start_from.weekday() >= 5:
   start_from += dt.timedelta(days=(7 - start_from.weekday()))
 
-current = max(first_day, start_from)
-while current <= last_day:
-    if current.weekday() >= 5:
-        current += dt.timedelta(days=(7 - current.weekday()))
-        continue
+def is_business_day(day: dt.date) -> bool:
+  return day.weekday() < 5 and day not in excluded_days
 
-    week_start = current
-    week_end = current + dt.timedelta(days=(4 - current.weekday()))
-    print(week_start.strftime("%Y%m%d"), week_end.strftime("%Y%m%d"))
-    current = week_end + dt.timedelta(days=1)
+current = max(first_day, start_from)
+range_start = None
+prev_day = None
+
+while current <= last_day:
+  if is_business_day(current):
+    if range_start is None:
+      range_start = current
+    elif prev_day is not None and (current - prev_day).days > 1:
+      print(range_start.strftime("%Y%m%d"), prev_day.strftime("%Y%m%d"))
+      range_start = current
+    prev_day = current
+  else:
+    if range_start is not None and prev_day is not None:
+      print(range_start.strftime("%Y%m%d"), prev_day.strftime("%Y%m%d"))
+      range_start = None
+      prev_day = None
+  current += dt.timedelta(days=1)
+
+if range_start is not None and prev_day is not None:
+  print(range_start.strftime("%Y%m%d"), prev_day.strftime("%Y%m%d"))
 PY
   echo "Running: ./issue_prod_access $start_date $end_date"
   if [[ "$DRY_RUN" == false ]]; then

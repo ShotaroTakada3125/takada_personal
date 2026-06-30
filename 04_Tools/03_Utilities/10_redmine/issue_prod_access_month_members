@@ -8,11 +8,13 @@ MEMBERS_FILE="$SCRIPT_DIR/members.csv"
 usage() {
   cat <<'EOF'
 Usage:
-  ./issue_prod_access_month_members YYYYMM [--members-file FILE] [--start-date YYYYMMDD] [--dry-run]
+  ./issue_prod_access_month_members YYYYMM [--members-file FILE] [--start-date YYYYMMDD] [--exclude-date YYYYMMDD]... [--exclude-file FILE] [--dry-run]
 
 Examples:
   ./issue_prod_access_month_members 202607
   ./issue_prod_access_month_members 202607 --start-date 20260706 --dry-run
+  ./issue_prod_access_month_members 202607 --exclude-date 20260721 --dry-run
+  ./issue_prod_access_month_members 202607 --exclude-file ./holidays.txt --dry-run
   ./issue_prod_access_month_members 202607 --members-file ./members.csv
 
 Description:
@@ -36,6 +38,8 @@ shift
 
 START_DATE=""
 DRY_RUN=false
+EXCLUDE_FILE=""
+EXCLUDE_DATES=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -57,6 +61,24 @@ while [[ $# -gt 0 ]]; do
       START_DATE="$2"
       shift 2
       ;;
+    --exclude-date)
+      if [[ $# -lt 2 ]]; then
+        echo "Missing value for --exclude-date" >&2
+        usage
+        exit 1
+      fi
+      EXCLUDE_DATES+=("$2")
+      shift 2
+      ;;
+    --exclude-file)
+      if [[ $# -lt 2 ]]; then
+        echo "Missing value for --exclude-file" >&2
+        usage
+        exit 1
+      fi
+      EXCLUDE_FILE="$2"
+      shift 2
+      ;;
     --dry-run)
       DRY_RUN=true
       shift
@@ -76,6 +98,18 @@ fi
 
 if [[ -n "$START_DATE" && ! "$START_DATE" =~ ^[0-9]{8}$ ]]; then
   echo "Invalid start-date format: $START_DATE (expected YYYYMMDD)" >&2
+  exit 1
+fi
+
+for excluded in "${EXCLUDE_DATES[@]:-}"; do
+  if [[ -n "$excluded" && ! "$excluded" =~ ^[0-9]{8}$ ]]; then
+    echo "Invalid exclude-date format: $excluded (expected YYYYMMDD)" >&2
+    exit 1
+  fi
+done
+
+if [[ -n "$EXCLUDE_FILE" && ! -f "$EXCLUDE_FILE" ]]; then
+  echo "Exclude file not found: $EXCLUDE_FILE" >&2
   exit 1
 fi
 
@@ -110,6 +144,14 @@ while IFS=, read -r author_id author_name; do
   cmd=("$MONTH_CMD" "$TARGET_MONTH")
   if [[ -n "$START_DATE" ]]; then
     cmd+=("--start-date" "$START_DATE")
+  fi
+  if [[ -n "$EXCLUDE_FILE" ]]; then
+    cmd+=("--exclude-file" "$EXCLUDE_FILE")
+  fi
+  if [[ ${#EXCLUDE_DATES[@]} -gt 0 ]]; then
+    for excluded in "${EXCLUDE_DATES[@]}"; do
+      cmd+=("--exclude-date" "$excluded")
+    done
   fi
   if [[ "$DRY_RUN" == true ]]; then
     cmd+=("--dry-run")

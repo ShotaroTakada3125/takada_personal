@@ -6,11 +6,12 @@
 
 ## 概要
 
-`issue_prod_access_month` は、指定した月（`YYYYMM`）を週単位（営業日: 月〜金）に分割し、
+`issue_prod_access_month` は、指定した月（`YYYYMM`）の営業日（月〜金）を対象に、
 内部で `issue_prod_access START_DATE END_DATE` を順番に実行するラッパースクリプトです。
 
 - 日付フォーマットは `YYYYMMDD`
 - 週末（土日）はスキップされます
+- 除外日を指定した場合は、その日を外した連続区間に自動分割されます
 - `--dry-run` を付けると実行コマンド表示のみで、実際の処理は行いません
 
 ## 前提条件
@@ -24,7 +25,7 @@
 スクリプトのあるディレクトリで実行します。
 
 ```bash
-./issue_prod_access_month YYYYMM [--start-date YYYYMMDD] [--dry-run]
+./issue_prod_access_month YYYYMM [--start-date YYYYMMDD] [--exclude-date YYYYMMDD]... [--exclude-file FILE] [--dry-run]
 ```
 
 ### 例
@@ -41,6 +42,12 @@
 
 # 2026年7月の2週目以降だけ確認
 ./issue_prod_access_month 202607 --start-date 20260706 --dry-run
+
+# 指定日を除外して実行
+./issue_prod_access_month 202607 --exclude-date 20260721 --exclude-date 20260731
+
+# 除外日ファイルを使って実行
+./issue_prod_access_month 202607 --exclude-file ./holidays.txt --dry-run
 ```
 
 ## 引数
@@ -51,8 +58,22 @@
   - 指定日以降の週だけを対象にします
   - 指定日は対象月の範囲内である必要があります
   - 土日を指定した場合は次の月曜日から開始されます
+- `--exclude-date YYYYMMDD`（任意、複数指定可）
+  - 指定した日を実行対象から除外します（祝日など）
+  - 対象月外の日付はエラーになります
+- `--exclude-file FILE`（任意）
+  - 1行1日付（`YYYYMMDD`）のファイルを読み込んで除外します
+  - `#` 始まり行と空行は無視されます
 - `--dry-run`（任意）
   - 実行対象の期間とコマンドだけを表示します
+
+除外日ファイルの例（`holidays.txt`）:
+
+```text
+# 2026-07 holidays
+20260721
+20260731
+```
 
 ## `.env` を書き換えないメンバー切替
 
@@ -86,6 +107,13 @@ REDMINE_AUTHOR_ID=4731 REDMINE_AUTHOR_NAME="髙田 祥太朗" \
 
 ```bash
 ./issue_prod_access_month_members 202607 --start-date 20260706 --dry-run
+```
+
+除外日を付けて一括実行:
+
+```bash
+./issue_prod_access_month_members 202607 --start-date 20260706 --exclude-date 20260721 --dry-run
+./issue_prod_access_month_members 202607 --exclude-file ./holidays.txt --dry-run
 ```
 
 必要に応じてファイルを指定:
