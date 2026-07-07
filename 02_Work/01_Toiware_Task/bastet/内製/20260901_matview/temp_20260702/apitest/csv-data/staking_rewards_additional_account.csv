@@ -1,0 +1,4 @@
+account_name,currency,period,total_cash_balance,register_datetime,register_user,update_datetime,update_user,delete_flag,version
+Test Additional DOT,DOT,202606,50000.00000000000000000000,2026-06-01 0:00:00,test,2026-06-01 0:00:00,test,f,0
+Test Additional ETH,ETH,202606,30000.00000000000000000000,2026-06-01 0:00:00,test,2026-06-01 0:00:00,test,f,0
+Test Additional ADA,ADA,202606,20000.00000000000000000000,2026-06-01 0:00:00,test,2026-06-01 0:00:00,test,f,0
