@@ -1,570 +1,282 @@
-# ステーキング報酬円転受取設定 手動テストケース
+# ステーキング報酬受取設定 手動テストケース（統合後）
 
-## テストケース一覧
+## 前提
 
-### 1. 円転対象銘柄一覧取得API
+- 起動: `mvn spring-boot:run`（dev profile）、ポート`21002`
+- DB接続: `postgresql://signupadmin:signupadmin@localhost:5432/s25signup`（`apitest/dredd-test.sh`と同一）
+- テスト対象アカウント: `10000008`（本登録）、`10000001`（仮登録などの本登録以外のステータス）
+- マスタデータ（`staking_rewards_currency`・`staking_rewards_conversions`）は別リポジトリのマイグレーションで投入済みであることが前提。以下の銘柄コード（ETH/JPYSC/USDC等）は投入内容に応じて読み替えること。
 
-#### TC-001: 正常系 - 初回取得（申請履歴なし）
-**目的:** 初めて画面を開いたユーザーが銘柄一覧を取得できることを確認
+### 事前確認: マスタデータの投入状況
 
-**手順:**
-1. APIを実行
-   ```bash
-   curl -X GET "http://localhost:21002/staking/conversion/10000001"
-   ```
-
-**期待結果:**
-- HTTPステータス: `200 OK`
-- レスポンス例:
-  ```json
-  [
-    {
-      "currency": "ETH",
-      "jpyConversionEnabled": false
-    },
-    {
-      "currency": "XDC",
-      "jpyConversionEnabled": false
-    }
-  ]
-  ```
-- 全銘柄の`jpyConversionEnabled`が`false`（デフォルト値）
-
----
-
-#### TC-002: 正常系 - 申請履歴ありの取得
-**目的:** 過去に申請した設定が正しく取得できることを確認
-
-**事前条件:**
 ```sql
--- ETHの円転設定を有効にしたデータを投入
-INSERT INTO staking_rewards_conversion_entry (
-  account_id, currency, jpy_conversion_enabled, applied_datetime,
-  register_datetime, register_user, update_datetime, update_user, delete_flag, version
-) VALUES (
-  '10000001', 'ETH', 1, CURRENT_TIMESTAMP,
-  CURRENT_TIMESTAMP, '10000001', CURRENT_TIMESTAMP, '10000001', 0, 0
-);
+SELECT currency, sort_order FROM staking_rewards_currency WHERE delete_flag = false ORDER BY sort_order;
+SELECT currency, converted_currency, sort_order FROM staking_rewards_conversions WHERE delete_flag = false ORDER BY currency, sort_order;
+```
+- 各銘柄について、自己参照行（例: `ETH → ETH`）が最低1件存在することを確認する。
+
+### テスト後のクリーンアップ
+
+```sql
+DELETE FROM staking_rewards_entry WHERE account_id = '10000008';
 ```
 
-**手順:**
-1. APIを実行
-   ```bash
-   curl -X GET "http://localhost:21002/staking/conversion/10000001"
-   ```
-
-**期待結果:**
-- HTTPステータス: `200 OK`
-- レスポンス例:
-  ```json
-  [
-    {
-      "currency": "ETH",
-      "jpyConversionEnabled": true
-    },
-    {
-      "currency": "XDC",
-      "jpyConversionEnabled": false
-    }
-  ]
-  ```
-
 ---
 
-#### TC-003: 異常系 - 存在しない口座番号
-**目的:** 不正な口座番号でエラーが返ることを確認
+## E2Eシナリオ
 
-**手順:**
-1. APIを実行
-   ```bash
-   curl -X GET "http://localhost:21002/staking/conversion/99999999"
-   ```
+### TC-E01: 初回取得（申請履歴なし）
+目的: エントリ未登録時に「暗号資産のまま受取」がデフォルトとして返ることを確認
 
-**期待結果:**
-- HTTPステータス: `404 Not Found`
-- エラーメッセージに「口座が存在しません」が含まれる
-
----
-
-#### TC-004: 異常系 - 口座ステータスが仮口座
-**目的:** 本口座以外のステータスで空リストが返ることを確認
-
-**手順:**
-1. APIを実行（仮口座の口座番号を使用）
-   ```bash
-   curl -X GET "http://localhost:21002/staking/conversion/10000002"
-   ```
-
-**期待結果:**
-- HTTPステータス: `200 OK`
-- レスポンス: `[]` (空配列)
-- ログに警告メッセージが出力される
-
----
-
-### 2. 円転申請登録API
-
-#### TC-101: 正常系 - 初回申請（ETHのみ円転有効）
-**目的:** 初めて円転設定を行う場合の正常動作を確認
-
-**手順:**
-1. APIを実行
-   ```bash
-   curl -X POST "http://localhost:21002/staking/conversion/register" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "accountId": "10000001",
-       "changeList": [
-         {
-           "currency": "ETH",
-           "jpyConversionEnabled": true
-         },
-         {
-           "currency": "XDC",
-           "jpyConversionEnabled": false
-         }
-       ]
-     }'
-   ```
-
-**期待結果:**
-- HTTPステータス: `200 OK`
-- DBに新規レコードが作成される
-  ```sql
-  SELECT * FROM staking_rewards_conversion_entry
-  WHERE account_id = '10000001'
-  AND currency = 'ETH'
-  AND delete_flag = 0;
-  ```
-- `jpy_conversion_enabled` = `1`
-- `applied_datetime` が現在日時
-- ログに「新規登録しました」が出力される
-
----
-
-#### TC-102: 正常系 - 同月内の設定変更（上書き）
-**目的:** 同じ月内に設定を変更した場合、既存レコードが上書きされることを確認
-
-**事前条件:**
-```sql
--- 今月のデータを投入
-INSERT INTO staking_rewards_conversion_entry (
-  id, account_id, currency, jpy_conversion_enabled, applied_datetime,
-  register_datetime, register_user, update_datetime, update_user, delete_flag, version
-) VALUES (
-  100, '10000001', 'ETH', 1, CURRENT_TIMESTAMP,
-  CURRENT_TIMESTAMP, '10000001', CURRENT_TIMESTAMP, '10000001', 0, 0
-);
-```
-
-**手順:**
-1. APIを実行（ETHの設定をfalseに変更）
-   ```bash
-   curl -X POST "http://localhost:21002/staking/conversion/register" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "accountId": "10000001",
-       "changeList": [
-         {
-           "currency": "ETH",
-           "jpyConversionEnabled": false
-         }
-       ]
-     }'
-   ```
-
-**期待結果:**
-- HTTPステータス: `200 OK`
-- 既存レコード（ID=100）の`jpy_conversion_enabled`が`0`に更新される
-- `applied_datetime`が更新される
-- **新規レコードは作成されない**（既存レコードの上書き）
-- ログに「上書きしました」が出力される
-
----
-
-#### TC-103: 正常系 - 別月の設定変更（新規作成）
-**目的:** 月をまたいで設定を変更した場合、新規レコードが作成されることを確認
-
-**事前条件:**
-```sql
--- 先月のデータを投入
-INSERT INTO staking_rewards_conversion_entry (
-  id, account_id, currency, jpy_conversion_enabled, applied_datetime,
-  register_datetime, register_user, update_datetime, update_user, delete_flag, version
-) VALUES (
-  200, '10000001', 'ETH', 1, '2026-05-15 10:00:00',
-  '2026-05-15 10:00:00', '10000001', '2026-05-15 10:00:00', '10000001', 0, 0
-);
-```
-
-**手順:**
-1. APIを実行（ETHの設定をfalseに変更）
-   ```bash
-   curl -X POST "http://localhost:21002/staking/conversion/register" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "accountId": "10000001",
-       "changeList": [
-         {
-           "currency": "ETH",
-           "jpyConversionEnabled": false
-         }
-       ]
-     }'
-   ```
-
-**期待結果:**
-- HTTPステータス: `200 OK`
-- **新規レコードが作成される**
-- 先月のレコード（ID=200）は変更されない
-  ```sql
-  SELECT COUNT(*) FROM staking_rewards_conversion_entry
-  WHERE account_id = '10000001'
-  AND currency = 'ETH'
-  AND delete_flag = 0;
-  -- 結果: 2件（先月と今月のレコード）
-  ```
-- ログに「新規登録しました」が出力される
-
----
-
-#### TC-104: 正常系 - 設定変更なし（保存されない）
-**目的:** 既存の設定と同じ値を送信した場合、DBが更新されないことを確認
-
-**事前条件:**
-```sql
-INSERT INTO staking_rewards_conversion_entry (
-  id, account_id, currency, jpy_conversion_enabled, applied_datetime,
-  register_datetime, register_user, update_datetime, update_user, delete_flag, version
-) VALUES (
-  300, '10000001', 'ETH', 1, CURRENT_TIMESTAMP,
-  CURRENT_TIMESTAMP, '10000001', CURRENT_TIMESTAMP, '10000001', 0, 0
-);
-```
-
-**手順:**
-1. 既存と同じ値でAPIを実行
-   ```bash
-   curl -X POST "http://localhost:21002/staking/conversion/register" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "accountId": "10000001",
-       "changeList": [
-         {
-           "currency": "ETH",
-           "jpyConversionEnabled": true
-         }
-       ]
-     }'
-   ```
-
-**期待結果:**
-- HTTPステータス: `200 OK`
-- DBのレコード（ID=300）の`update_datetime`が**更新されない**
-- 新規レコードも作成されない
-
----
-
-#### TC-105: 正常系 - 複数銘柄の一括更新
-**目的:** 複数銘柄の設定を同時に変更できることを確認
-
-**手順:**
-1. APIを実行
-   ```bash
-   curl -X POST "http://localhost:21002/staking/conversion/register" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "accountId": "10000001",
-       "changeList": [
-         {
-           "currency": "ETH",
-           "jpyConversionEnabled": true
-         },
-         {
-           "currency": "XDC",
-           "jpyConversionEnabled": true
-         }
-       ]
-     }'
-   ```
-
-**期待結果:**
-- HTTPステータス: `200 OK`
-- ETHとXDCの両方のレコードが作成される
-  ```sql
-  SELECT currency, jpy_conversion_enabled FROM staking_rewards_conversion_entry
-  WHERE account_id = '10000001'
-  AND delete_flag = 0;
-  ```
-
----
-
-#### TC-106: 異常系 - 円転対象外の銘柄を指定
-**目的:** 円転対象でない銘柄を指定した場合のエラー処理を確認
-
-**手順:**
-1. APIを実行（BTCは円転対象外と仮定）
-   ```bash
-   curl -X POST "http://localhost:21002/staking/conversion/register" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "accountId": "10000008",
-       "changeList": [
-         {
-           "currency": "BTC",
-           "jpyConversionEnabled": true
-         }
-       ]
-     }'
-   ```
-
-**期待結果:**
-- HTTPステータス: `400 Bad Request`
-- エラーメッセージ: 「暗号資産情報が存在しません。」
-
----
-
-#### TC-107: 異常系 - バリデーションエラー（口座番号不正）
-**目的:** リクエストパラメータのバリデーションが動作することを確認
-
-**手順:**
-1. 不正な口座番号でAPIを実行
-   ```bash
-   curl -X POST "http://localhost:21002/staking/conversion/register" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "accountId": "123",
-       "changeList": [
-         {
-           "currency": "ETH",
-           "jpyConversionEnabled": true
-         }
-       ]
-     }'
-   ```
-
-**期待結果:**
-- HTTPステータス: `400 Bad Request`
-- バリデーションエラーメッセージ {"error":1000,"message":"accountId must match \"\\d{8}\""}
-
----
-
-#### TC-108: 異常系 - 必須パラメータ欠如
-**目的:** 必須パラメータが欠けている場合のエラー処理を確認
-
-**手順:**
-1. changeListを送信しない
-   ```bash
-   curl -X POST "http://localhost:21002/staking/conversion/register" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "accountId": "10000001"
-     }'
-   ```
-
-**期待結果:**
-- {"error":1000,"message":"changeList must not be null"}
-
----
-
-#### TC-109: 異常系 - 口座ステータスが不正
-**目的:** 仮口座など不正なステータスの場合のエラー処理を確認
-
-**手順:**
-1. 仮口座の口座番号でAPIを実行
-   ```bash
-   curl -X POST "http://localhost:21002/staking/conversion/register" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "accountId": "10000002",
-       "changeList": [
-         {
-           "currency": "ETH",
-           "jpyConversionEnabled": true
-         }
-       ]
-     }'
-   ```
-
-**期待結果:**
-- HTTPステータス: `417 Expectation Failed`
-- エラーコード: `INVALID_ACCOUNT_STATE`
-- {"error":2008,"message":"口座状況が不正です。"}
-
----
-
-### 3. 統合シナリオテスト
-
-#### TC-201: E2Eシナリオ - 初回申請から設定変更まで
-**目的:** 実際のユーザー操作を想定した一連の流れを確認
-
-**手順:**
-1. 円転設定一覧を取得（初回）
-   ```bash
-   curl -X GET "http://localhost:21002/staking/conversion/10000001"
-   ```
-   → 全てfalse
-
-2. ETHの円転を有効化
-   ```bash
-   curl -X POST "http://localhost:21002/staking/conversion/register" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "accountId": "10000001",
-       "changeList": [
-         {"currency": "ETH", "jpyConversionEnabled": true},
-         {"currency": "XDC", "jpyConversionEnabled": false}
-       ]
-     }'
-   ```
-
-3. 再度一覧を取得して確認
-   ```bash
-   curl -X GET "http://localhost:21002/staking/conversion/10000001"
-   ```
-   → ETHがtrue
-
-4. 同月内にETHを無効化（上書き）
-   ```bash
-   curl -X POST "http://localhost:21002/staking/conversion/register" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "accountId": "10000001",
-       "changeList": [
-         {"currency": "ETH", "jpyConversionEnabled": false}
-       ]
-     }'
-   ```
-
-5. DBで同月内のレコード数を確認
-   ```sql
-   SELECT COUNT(*) FROM staking_rewards_conversion_entry
-   WHERE account_id = '10000001'
-   AND currency = 'ETH'
-   AND DATE_FORMAT(applied_datetime, '%Y-%m') = DATE_FORMAT(CURRENT_TIMESTAMP, '%Y-%m')
-   AND delete_flag = 0;
-   ```
-   → 1件のみ（上書きされている）
-
-**期待結果:**
-- 全ステップが正常に完了
-- 同月内の設定変更は上書き、別月は新規作成
-
----
-
-## 境界値・特殊ケース
-
-### TC-301: 月末最終日から月初への跨ぎ
-**目的:** 月をまたぐタイミングでの動作確認
-
-**手順:**
-1. 月末（例: 2026/06/30 23:59）にデータ投入
-2. 月初（例: 2026/07/01 00:01）に設定変更
-3. 新規レコードが作成されることを確認
-
----
-
-### TC-302: 削除済みレコードの扱い
-**目的:** 削除フラグがtrueのレコードが取得されないことを確認
-
-**事前条件:**
-```sql
--- 削除フラグがtrueのレコードを投入
-INSERT INTO staking_rewards_conversion_entry (
-  account_id, currency, jpy_conversion_enabled, applied_datetime,
-  register_datetime, register_user, update_datetime, update_user, delete_flag, version
-) VALUES (
-  '10000001', 'ETH', 1, CURRENT_TIMESTAMP,
-  CURRENT_TIMESTAMP, '10000001', CURRENT_TIMESTAMP, '10000008', 1, 0
-);
-```
-
-**手順:**
-1. 一覧取得APIを実行
-
-**期待結果:**
-- 削除フラグがtrueのレコードは取得されない
-- ETHはデフォルト値（false）で返る
-
----
-
-## APIテスト実行用スクリプト
-
-### 一括実行スクリプト（bash）
 ```bash
-#!/bin/bash
+curl -X GET "http://localhost:21002/staking/10000008" | jq
+```
 
-BASE_URL="http://localhost:21002"
-ACCOUNT_ID="10000001"
+期待結果:
+- `200 OK`
+- 各銘柄について `isRewardRejection: false`、`receivedCurrency` が銘柄自身のコードと一致
+- `conversions` に選択可能な変換先一覧が入っている
+- WARN/ERRORログが出力されないこと（目視）
 
-echo "=== TC-001: 初回取得 ==="
-curl -X GET "${BASE_URL}/staking/conversion/${ACCOUNT_ID}"
-echo -e "\n"
+---
 
-echo "=== TC-101: 初回申請 ==="
-curl -X POST "${BASE_URL}/staking/conversion/register" \
+### TC-E02: JPYSC受取への変更 → GETへの反映確認
+目的: POSTで変更した内容がGETに正しく反映されることを確認
+
+```bash
+curl -X POST "http://localhost:21002/staking/update" \
   -H "Content-Type: application/json" \
   -d '{
-    "accountId": "'${ACCOUNT_ID}'",
+    "accountId": "10000008",
     "changeList": [
-      {"currency": "ETH", "jpyConversionEnabled": true},
-      {"currency": "XDC", "jpyConversionEnabled": false}
+      { "currency": "ETH", "isRewardRejection": false, "receivedCurrency": "JPYSC" }
     ]
-  }'
-echo -e "\n"
-
-echo "=== 設定確認 ==="
-curl -X GET "${BASE_URL}/staking/conversion/${ACCOUNT_ID}"
-echo -e "\n"
+  }' | jq
 ```
+
+期待結果: `200 OK`
+
+```bash
+curl -X GET "http://localhost:21002/staking/10000008" | jq
+```
+
+期待結果: ETHの`receivedCurrency`が`JPYSC`、`isRewardRejection`が`false`
+
+DB確認:
+```sql
+SELECT id, is_reward_rejection, received_currency, update_datetime
+FROM staking_rewards_entry
+WHERE account_id = '10000008' AND currency = 'ETH' AND delete_flag = false;
+```
+- `received_currency = 'JPYSC'`。この行の`id`を記録しておく（次のTC-E03で使用）。
 
 ---
 
-## チェックリスト
+### TC-E03: 同日中の再変更（上書き確認）
+目的: 当日基準の上書きルールにより、新規レコードが増えず既存行が更新されることを確認
 
-- [ ] TC-001 ~ TC-004: 一覧取得APIの正常系・異常系
-- [ ] TC-101 ~ TC-109: 登録APIの正常系・異常系
-- [ ] TC-201: E2Eシナリオテスト
-- [ ] TC-301 ~ TC-302: 境界値・特殊ケース
-- [ ] DBの状態確認（レコード数、値の正確性）
-- [ ] ログ出力の確認
-- [ ] フロントエンドとの連携確認（別リポジトリ）
+```bash
+curl -X POST "http://localhost:21002/staking/update" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "accountId": "10000008",
+    "changeList": [
+      { "currency": "ETH", "isRewardRejection": false, "receivedCurrency": "JPYSC" }
+    ]
+  }' | jq
+```
+
+期待結果: `200 OK`
+
+DB確認:
+```sql
+SELECT id, received_currency FROM staking_rewards_entry
+WHERE account_id = '10000008' AND currency = 'ETH' AND delete_flag = false;
+```
+- 件数が1件のまま（TC-E02と同じ`id`）で、`received_currency`が`DOT`に更新されていること（新規行が増えていないこと）。
 
 ---
 
-## 備考
+### TC-E04: 拒否設定への変更（受取銘柄のnull強制の確認）
+目的: 拒否設定時、リクエストに`receivedCurrency`を含めてもサーバー側で`null`に強制されることを確認
 
-### デバッグ用SQLクエリ
-
-```sql
--- 口座の全申請履歴を時系列で確認
-SELECT 
-  id,
-  currency,
-  jpy_conversion_enabled,
-  applied_datetime,
-  update_datetime,
-  delete_flag
-FROM staking_rewards_conversion_entry
-WHERE account_id = '10000001'
-ORDER BY currency, applied_datetime DESC;
-
--- 同月内の重複レコード確認（本来1銘柄1件のはず）
-SELECT 
-  currency,
-  DATE_FORMAT(applied_datetime, '%Y-%m') as month,
-  COUNT(*) as count
-FROM staking_rewards_conversion_entry
-WHERE account_id = '10000001'
-  AND delete_flag = 0
-GROUP BY currency, DATE_FORMAT(applied_datetime, '%Y-%m')
-HAVING count > 1;
+```bash
+curl -X POST "http://localhost:21002/staking/update" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "accountId": "10000008",
+    "changeList": [
+      { "currency": "ETH", "isRewardRejection": true, "receivedCurrency": "JPYSC" }
+    ]
+  }' | jq
 ```
 
-### テストデータクリーンアップ
+期待結果: `200 OK`
 
+DB確認:
 ```sql
--- テストデータの削除
-DELETE FROM staking_rewards_conversion_entry
-WHERE account_id IN ('10000001', '10000002');
+SELECT is_reward_rejection, received_currency FROM staking_rewards_entry
+WHERE account_id = '10000008' AND currency = 'ETH' AND delete_flag = false;
+```
+- `is_reward_rejection = true`、`received_currency`が`JPYSC`ではなく`NULL`であること。
+
+```bash
+curl -X GET "http://localhost:21002/staking/10000008" | jq
+```
+- ETHの`isRewardRejection: true`、`receivedCurrency: null`。
+
+---
+
+### TC-E05: 複数銘柄の同時変更
+目的: `changeList`に複数銘柄を含めた一括更新が正しく反映されることを確認
+
+```bash
+curl -s -X POST "http://localhost:21002/staking/update" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "accountId": "10000008",
+    "changeList": [
+      { "currency": "ETH", "isRewardRejection": false, "receivedCurrency": "ETH" },
+      { "currency": "FLR", "isRewardRejection": false, "receivedCurrency": "JPYSC" }
+    ]
+  }' | jq
+```
+
+期待結果: `200 OK`。GETで両銘柄の変更が反映されていることを確認。
+
+---
+
+### TC-E06: 存在しない口座番号（GET/POST共通で404になることを確認）
+目的: 口座未登録(`NoSuchElementException`)は、入力バリデーションエラーとは別に404として扱われることを確認する
+
+```bash
+curl -v -X GET "http://localhost:21002/staking/99999999" | jq
+```
+期待結果: `404`、`{"error":1004,...}`。ログに`account fetch failed: accountId=99999999`のWARNが出力されること（目視）。
+
+```bash
+curl -v -X POST "http://localhost:21002/staking/update" \
+  -H "Content-Type: application/json" \
+  -d '{"accountId":"99999999","changeList":[{"currency":"ETH","isRewardRejection":false,"receivedCurrency":"ETH"}]}' | jq
+```
+期待結果: `404`（400や500ではないこと）、`{"error":1004,...}`。ログに`account fetch failed: accountId=99999999`のWARNが出力されること。
+
+---
+
+### TC-E07: 口座ステータス不正時のGET/POSTの挙動差分確認
+目的: GETは空リスト、POSTは417になるという既知の仕様差分を確認する
+
+```bash
+curl -X GET "http://localhost:21002/staking/10000001" | jq
+```
+期待結果: `200 OK`、レスポンス`[]`。ログに`口座ステータスが正しくありません。: accountId=10000001, status=...`のWARNが出力されること。
+
+```bash
+curl -v -X POST "http://localhost:21002/staking/update" \
+  -H "Content-Type: application/json" \
+  -d '{"accountId": "10000001", "changeList": [{"currency":"ETH","isRewardRejection":false,"receivedCurrency":"ETH"}]}' | jq
+```
+期待結果: `417`、`{"error":2008,...}`。
+
+---
+
+### TC-E08: 不正な変更内容（バリデーションエラー）
+目的: 銘柄不正・受取銘柄未指定・変換先不正のいずれも400が返り、既存データが変更されないことを確認する。
+
+注意: レスポンスの`message`は3パターンとも`error=1000`に対応する固定の汎用メッセージ（例:「パラメーターが正しくありません。」）になり、レスポンス上では区別できない。個別の原因はサーバー側のWARNログでのみ確認できる（`createErrorResponse(HttpStatus.BAD_REQUEST, VALIDATION_ERROR)`が例外メッセージをレスポンスに渡さない仕様のため）。
+
+```bash
+# ① 存在しない銘柄
+curl -v -X POST "http://localhost:21002/staking/update" \
+  -H "Content-Type: application/json" \
+  -d '{"accountId":"10000008","changeList":[{"currency":"XXX","isRewardRejection":false,"receivedCurrency":"XXX"}]}' | jq
+```
+期待結果: `400`、レスポンスは`{"error":1000,"message":"パラメーターが正しくありません。"}`（固定文言）。ログに`staking rewards change invalid request: accountId=10000008`のWARNが出力され、その例外メッセージが「暗号資産情報が存在しません。」であること。
+
+```bash
+# ② 非拒否なのにreceivedCurrencyを未指定(null)
+curl -X POST "http://localhost:21002/staking/update" \
+  -H "Content-Type: application/json" \
+  -d '{"accountId":"10000008","changeList":[{"currency":"ETH","isRewardRejection":false}]}' | jq
+```
+期待結果: `400`、レスポンスは①と同じ固定文言。ログの例外メッセージが「受け取り銘柄を指定してください。」であること（①・③とは異なる、未指定であることを示す文言）。
+
+```bash
+# ③ 存在しない変換先(マッピングにない銘柄コードを指定)
+curl -X POST "http://localhost:21002/staking/update" \
+  -H "Content-Type: application/json" \
+  -d '{"accountId":"10000008","changeList":[{"currency":"ETH","isRewardRejection":false,"receivedCurrency":"存在しない銘柄コード"}]}' | jq
+```
+期待結果: `400`、レスポンスは①と同じ固定文言。ログの例外メッセージが「受け取り銘柄情報が存在しません。」であること（②とは異なり「未指定」ではなく「存在しない」という文言）。
+
+- 3ケースともDBの既存行が変更されていないことを確認（他行への影響がないこと）。
+
+---
+
+### TC-E09: リクエスト自体のバリデーションエラー
+```bash
+# accountIdが8桁でない
+curl -v -X POST "http://localhost:21002/staking/update" \
+  -H "Content-Type: application/json" \
+  -d '{"accountId":"123","changeList":[{"currency":"ETH","isRewardRejection":false,"receivedCurrency":"ETH"}]}' | jq
+```
+期待結果: `400`、`accountId must match`系のメッセージ。
+
+```bash
+# changeList欠如
+curl -v -X POST "http://localhost:21002/staking/update" \
+  -H "Content-Type: application/json" \
+  -d '{"accountId":"10000008"}' | jq
+```
+期待結果: `400`、`changeList must not be null`系のメッセージ。
+
+---
+
+## ログ目視確認ポイント一覧
+
+| ログ文言（先頭部分） | HTTPステータス | 出現するはずのケース |
+|---|---|---|
+| `account fetch failed: accountId=` | 404 | TC-E06（GET/POST共通） |
+| `口座ステータスが正しくありません。: accountId=` | 200(空リスト)/417 | TC-E07 |
+| `staking rewards change invalid request: accountId=` | 400 | TC-E08（①②③いずれも） |
+| `staking rewards fetch failed.: accountId=` | 500 | GET側の想定外エラー時のみ。手動では再現困難なため、自動テスト（`getStakingRewardsEntryList_returnsInternalServerErrorOnException`）でのみ検証済み |
+| `staking rewards change failed.: accountId=` | 500 | POST側の想定外エラー時のみ。上記のいずれのケースでも出現しないことを確認する（500ケースが混入していないかのチェック） |
+
+---
+
+## 一括実行スクリプト（bash）
+
+```bash
+#!/bin/bash
+BASE_URL="http://localhost:21002"
+ACCOUNT_ID="10000008"
+
+echo "=== TC-E01: 初回取得 ==="
+curl -s -X GET "${BASE_URL}/staking/${ACCOUNT_ID}" | jq
+
+echo "=== TC-E02: JPYSC受取へ変更 ==="
+curl -s -X POST "${BASE_URL}/staking/update" -H "Content-Type: application/json" -d '{
+  "accountId": "'${ACCOUNT_ID}'",
+  "changeList": [{"currency": "ETH", "isRewardRejection": false, "receivedCurrency": "JPYSC"}]
+}' | jq
+
+echo "=== 反映確認 ==="
+curl -s -X GET "${BASE_URL}/staking/${ACCOUNT_ID}" | jq
+
+echo "=== TC-E04: 拒否設定へ変更 ==="
+curl -s -X POST "${BASE_URL}/staking/update" -H "Content-Type: application/json" -d '{
+  "accountId": "'${ACCOUNT_ID}'",
+  "changeList": [{"currency": "ETH", "isRewardRejection": true, "receivedCurrency": "JPYSC"}]
+}' | jq
+
+echo "=== 反映確認(receivedCurrencyがnullになっているか) ==="
+curl -s -X GET "${BASE_URL}/staking/${ACCOUNT_ID}" | jq
+
+echo "=== TC-E06: 存在しない口座番号(GET/POSTとも404になることを確認) ==="
+curl -s -o /dev/null -w "GET  status=%{http_code}\n" -X GET "${BASE_URL}/staking/99999999"
+curl -s -o /dev/null -w "POST status=%{http_code}\n" -X POST "${BASE_URL}/staking/update" -H "Content-Type: application/json" -d '{"accountId":"99999999","changeList":[{"currency":"ETH","isRewardRejection":false,"receivedCurrency":"ETH"}]}'
+
+echo "=== TC-E08: receivedCurrency未指定と変換先不正でメッセージが異なることを確認 ==="
+curl -s -X POST "${BASE_URL}/staking/update" -H "Content-Type: application/json" -d '{"accountId":"'${ACCOUNT_ID}'","changeList":[{"currency":"ETH","isRewardRejection":false}]}' | jq
+curl -s -X POST "${BASE_URL}/staking/update" -H "Content-Type: application/json" -d '{"accountId":"'${ACCOUNT_ID}'","changeList":[{"currency":"ETH","isRewardRejection":false,"receivedCurrency":"存在しない銘柄コード"}]}' | jq
 ```
