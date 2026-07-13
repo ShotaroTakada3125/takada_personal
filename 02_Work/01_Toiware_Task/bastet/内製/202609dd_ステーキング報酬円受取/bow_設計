@@ -1,0 +1,116 @@
+# ステーキング報酬 JPYSC受取変換 設計書
+
+## 背景
+
+ステーキング報酬をJPYSCで受け取る機能の追加要望があったため。
+特定の銘柄のステーキング報酬をJPYSCに変換して報酬を受け取るためにBOWにYuinchiに登録するCSVを修正する必要がある。
+
+## 実現するべき要件概要
+
+ステーキング報酬額照会検索画面にて、フロント側で設定されたステーキング報酬受取方法でJPYSCに設定している顧客の最終付与額はJPYSCに変換した額を表示する。
+JPYSCに変換した報酬の付与額を入庫用リストCSVに出力し、Yuinchiで登録し顧客が報酬を受け取れるようにする。
+顧客のステーキング報酬JPYSC受け取りに関するカスタマイズ定義書は下記を参照。
+
+### 未確定事項
+
+| 項目 | 状況 |
+|---|---|
+| ステーキング報酬計算画面上のUI | **【未確定】** 画面イメージシート側で別途検討が必要 |
+| 銘柄に対するJPYSCレート情報は画面、ないしCSVから手動で登録してもらう形かどうか | **【確定】** 対応概要1の通り、報酬総額CSVで登録する方式とする |
+| JPYSC受取に変換可能な銘柄が既存のステーキング銘柄全てでよいのか | **【確定（要客先確認）】** 既存実装（`staking_rewards_conversions`テーブル、DMLファイル`V20260902_3000`）にて既存の全銘柄（DOT, ADA, AVAX, ETH, SOL, OAS, ATOM, XDC, FLR, APT, HBAR, NEAR, TRX, SUI, TON, ALGO）についてJPYSC変換パターンが登録済み。この前提で進める旨をお客様確認事項に記載する |
+| キャッシュバック対象顧客は通常ステーキング報酬、キャッシュバック報酬をJPYSCで受取できない仕様 | **【確定】** 対応概要7参照 |
+
+※確認事項については、別紙、お客様確認事項に記載して証跡を残す。
+
+## 対応概要
+
+### 修正対象画面
+
+ステーキング報酬額照会検索画面
+画面デザインについては「画面イメージシート」を参照
+
+### 修正内容
+
+#### 1. 報酬総額CSVへのJPYSCレート追加
+
+画面利用ユーザが登録する、報酬総額CSVに銘柄のJPYSCレートを追加する。
+報酬総額CSVで、「銘柄」「報酬総額」「顧客報酬割合」に加えて「JPYSCレート」が含まれる様に変更する。
+「ステーキング報酬総額管理テーブル」(`staking_rewards_total`)にJPYSCレート(`jpysc_rate`)を保持するカラムを追加する。
+JPYSCレートの桁数は、整数8桁+小数6桁とする。
+変更概要は「ステーキング報酬総額管理テーブル」シート参照。
+
+#### 2. 通常口座ステーキング報酬の検索結果への受取銘柄判別カラム追加
+
+通常口座ステーキング報酬の検索結果に、各銘柄で取得するのか、JPYSCで取得するのかを判別できるカラムを追加する。
+元の銘柄の値で取得する場合は銘柄名、JPYSCで受取する場合はJPYSCと表示する。
+
+#### 3. 合計金額項目へのJPYSCレート表示
+
+通常口座ステーキング報酬の検索時の合計金額の項目に、報酬総額CSVにて登録した銘柄ごとのJPYSCレートを表示する。
+入力時と同様、桁数は整数8桁+小数6桁とする。
+
+#### 4. JPYSC受取設定口座の最終付与額計算
+
+ステーキング報酬をJPYSC受取にて設定している口座は、暗号資産でのステーキング報酬額にJPYSCレートを掛けた結果に沿って最終付与額の計算を行う。
+最終付与額は暗号資産で受け取る場合の額に、報酬総額CSVで登録したJPYSCレートを乗算して表示する。
+
+- 銘柄での付与の場合：最終付与額を小数桁6桁以下を切り捨て
+- JPYSCでの付与の場合：最終付与額をJPYSCレートで乗算したのち、小数以下を切り捨て
+
+その他のロジックは既存同様。
+
+#### 5. 最終付与額一覧CSVへの計算銘柄カラム追加
+
+最終付与額一覧CSVにて、最終付与額計算銘柄カラムを追加する。
+暗号資産で受け取る場合は銘柄名を、JPYSC受取する場合はJPYSCと表示する。
+最終付与額カラムには3で計算した最終付与額を表示する。
+
+#### 6. 入庫用リストCSVへのJPY報酬反映
+
+入庫用リストCSVの通貨カラムと入出金額カラムにJPY報酬を反映する。
+
+- JPYSC受取申請している場合、通貨カラムはJPYSCで出力される
+- JPYSC受取申請している場合、入出金額カラムはJPYSCでの金額が表示される
+- 摘要カラムは68（ステーキング）固定
+- 備考カラムはJPYSC変換前の通貨 + 「ステーキング報酬（YYYY年MM月分）」
+
+#### 7. キャッシュバック対象顧客のステーキング報酬受取銘柄制限
+
+キャッシュバック対象口座（`staking_cashback_account`に当該期間・銘柄で登録されている口座）は、`staking_rewards_entry.received_currency`の設定に関わらず、通常ステーキング報酬をネイティブトークンで付与する。
+
+**実装方式（計算時オーバーライド方式を採用）**
+
+顧客の受取設定データ（`staking_rewards_entry.received_currency`）自体は変更しない。`staking_rewards_fn`（`R__staking_rewards__view.sql`）内の計算ロジックにて、対象のaccount_id・currency・periodが`staking_cashback_account`に存在する場合、計算上ネイティブトークン扱いに上書きする。
+
+これにより、キャッシュバック対象から外れた翌月以降は、顧客が別途設定変更しなくても自動的に元のJPYSC受取設定に復帰する。
+
+**変更対象:**
+
+- `R__staking_rewards__view.sql`
+  - `sre_latest` CTE: `sre.received_currency`を選択カラムに追加
+  - 新規`sca` CTE: `staking_cashback_account`を`period = prev_month_period AND delete_flag = FALSE`で抽出
+  - メインSELECTに`LEFT JOIN sca ON sca.account_id = base.account_id AND sca.currency = base.currency AND sca.period = base.period`を追加
+  - 最終付与額計算銘柄（項目5で追加するカラム）を以下のCASE式で決定
+
+    ```sql
+    CASE
+        WHEN sca.account_id IS NOT NULL THEN base.currency
+        WHEN sre_rs.received_currency = 'JPYSC' THEN 'JPYSC'
+        ELSE base.currency
+    END AS reward_receive_currency
+    ```
+
+- `staking_cashback_view`（`R__staking_cashback_view.sql`）: **変更不要**。現状`received_currency`を一切参照しておらず、常にネイティブトークン相当で計算されているため、「キャッシュバック報酬もJPYSCで受け取れない」という要件を既に満たしている。
+
+**検討過程（お客様確認事項の証跡用）**
+
+以下の2案を比較検討した。
+
+| 案 | 内容 | 評価 |
+|---|---|---|
+| A案：データ上書き方式 | キャッシュバック対象口座が登録された時点で、`staking_rewards_entry.received_currency`を実際にJPYSC→ネイティブトークンへ書き換える | **不採用**。`staking_rewards_entry`はINSERT-only（履歴追加）方式であり、`sre_latest` CTEは`ROW_NUMBER() OVER (PARTITION BY account_id, currency ORDER BY update_datetime DESC)`で最新の1件を採用する。「システム強制上書き」と「顧客自身の選択」を区別するフラグが存在しないため、上書き後に顧客が画面から受取設定を再更新すると、その再更新が最新レコードとして扱われ、キャッシュバック対象期間中であっても意図せずJPYSC設定に戻ってしまう。また、キャッシュバック対象から外れた場合も、顧客が明示的に再設定しない限りJPYSC設定が失われたままになる。 |
+| B案：計算時オーバーライド方式 | `staking_rewards_entry`のデータは変更せず、`staking_rewards_fn`内で`staking_cashback_account`をJOINし、対象期間・対象銘柄がキャッシュバック対象なら計算時にネイティブトークン扱いに上書きする | **採用**。顧客の設定データを保持したまま、対象月だけ特例計算されるため、A案の問題が発生しない。既存の`is_exclusion`・`is_reward_rejection`と同じCTE JOINパターンで実装でき、既存アーキテクチャとの整合性も高い。 |
+
+なお、`received_currency`を顧客側から更新するAPI自体は本リポジトリには未実装（マイグレーションでカラムが追加されたのみ）であり、上記のA案のリスクは将来その更新機能が実装された際に発生する。
+
+
