@@ -7,7 +7,8 @@
 - 対象ファイル名パターン
   - スクリーンショット YYYY-MM-DD HH.MM.SS
   - スクリーンショット YYYY-MM-DD HH.MM.SS.png
-- 対象日付のファイルを時刻の古い順に並べ、先頭8件を固定順でリネーム
+- 対象日付のファイルのうち最新8件を取得し、時刻の古い順に固定順でリネーム
+- ファイル名は `YYYYMMDD_午前/午後_メトリクス名.png` の形式
 - 午前/午後の接頭辞を指定、または自動判定
 - 設定ファイルで以下を分離管理
   - 対象フォルダ
@@ -64,7 +65,7 @@ python3 rename_metrics_screenshots.py auto 20260608 --dry-run
 以下2つは同じ意味です。
 
 ```bash
-python3 rename_metrics_screenshots.py --period auto --date 20260608 --dry-run
+python3 rename_metrics_screenshots.py --period am --date 20260714 --dry-run
 python3 rename_metrics_screenshots.py auto 20260608 --dry-run
 ```
 
@@ -94,18 +95,19 @@ python3 rename_metrics_screenshots.py auto 20260608
 
 ## 8. リネーム順
 
-対象日付の候補を時刻の古い順に並べ、先頭から次の順で割り当てます。
+対象日付の候補のうち最新8件を取得し、時刻の古い順に次の形式で割り当てます。
 
-1. `午前/午後_口座開設_ECS_CPUUtilization.png`
-2. `午前/午後_口座開設_ECS_MemoryUtilization.png`
-3. `午前/午後_口座開設_DB_CPUUtilization.png`
-4. `午前/午後_口座開設_DB_FreeableMemory.png`
-5. `午前/午後_シンプル等_ECS_CPUUtilization.png`
-6. `午前/午後_シンプル等_ECS_MemoryUtilization.png`
-7. `午前/午後_シンプル等_DB_CPUUtilization.png`
-8. `午前/午後_シンプル等_DB_FreeableMemory.png`
+1. `YYYYMMDD_午前/午後_口座開設_ECS_CPUUtilization.png`
+2. `YYYYMMDD_午前/午後_口座開設_ECS_MemoryUtilization.png`
+3. `YYYYMMDD_午前/午後_口座開設_DB_CPUUtilization.png`
+4. `YYYYMMDD_午前/午後_口座開設_DB_FreeableMemory.png`
+5. `YYYYMMDD_午前/午後_シンプル等_ECS_CPUUtilization.png`
+6. `YYYYMMDD_午前/午後_シンプル等_ECS_MemoryUtilization.png`
+7. `YYYYMMDD_午前/午後_シンプル等_DB_CPUUtilization.png`
+8. `YYYYMMDD_午前/午後_シンプル等_DB_FreeableMemory.png`
 
-※ 実際の接尾辞部分は `rename_metrics_config.json` の `rename_order` を使います。
+※ 実際のメトリクス名部分は `rename_metrics_config.json` の `rename_order` を使います。
+※ `YYYYMMDD` は対象日付（ハイフンなし）に置き換えられます。
 
 ## 9. よくあるエラー
 

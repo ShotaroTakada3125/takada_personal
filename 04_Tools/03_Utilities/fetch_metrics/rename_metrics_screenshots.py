@@ -212,13 +212,14 @@ def main() -> int:
         print(f"[ERROR] 候補が不足しています。対象日付={target_date}, 候補数={len(shots)}")
         return 1
 
-    # 指定日付の古い順で8件を対象にする。
-    selected = sorted(shots, key=lambda s: s.sort_key)[:8]
+    # 指定日付の最新8件を取り出し、その中で古い順に並べる。
+    selected = sorted(shots, key=lambda s: s.sort_key)[-8:]
     target_period = detect_period(folder, period, target_date)
 
     rename_pairs = []
+    date_prefix = target_date.replace('-', '')
     for idx, shot in enumerate(selected):
-        new_name = f"{target_period}_{metric_suffixes[idx]}"
+        new_name = f"{date_prefix}_{target_period}_{metric_suffixes[idx]}"
         dst = folder / new_name
         rename_pairs.append((shot.path, dst))
 
