@@ -93,7 +93,7 @@ DB確認:
 SELECT id, received_currency FROM staking_rewards_entry
 WHERE account_id = '10000008' AND currency = 'ETH' AND delete_flag = false;
 ```
-- 件数が1件のまま（TC-E02と同じ`id`）で、`received_currency`が`DOT`に更新されていること（新規行が増えていないこと）。
+- 件数が1件のまま（TC-E02と同じ`id`）で、`received_currency`が`JPYSCd`に更新されていること（新規行が増えていないこと）。
 
 ---
 
@@ -101,7 +101,7 @@ WHERE account_id = '10000008' AND currency = 'ETH' AND delete_flag = false;
 目的: 拒否設定時、リクエストに`receivedCurrency`を含めてもサーバー側で`null`に強制されることを確認
 
 ```bash
-curl -X POST "http://localhost:21002/staking/update" \
+curl -s -X POST "http://localhost:21002/staking/update" \
   -H "Content-Type: application/json" \
   -d '{
     "accountId": "10000008",
@@ -152,14 +152,22 @@ curl -s -X POST "http://localhost:21002/staking/update" \
 ```bash
 curl -v -X GET "http://localhost:21002/staking/99999999" | jq
 ```
-期待結果: `404`、`{"error":1004,...}`。ログに`account fetch failed: accountId=99999999`のWARNが出力されること（目視）。
+期待結果: `404`、
+`{
+  "error": 1004,
+  "message": "指定された口座は登録されていません。"
+}`。ログに`account fetch failed: accountId=99999999`のWARNが出力されること（目視）。
 
 ```bash
 curl -v -X POST "http://localhost:21002/staking/update" \
   -H "Content-Type: application/json" \
   -d '{"accountId":"99999999","changeList":[{"currency":"ETH","isRewardRejection":false,"receivedCurrency":"ETH"}]}' | jq
 ```
-期待結果: `404`（400や500ではないこと）、`{"error":1004,...}`。ログに`account fetch failed: accountId=99999999`のWARNが出力されること。
+期待結果: `404`、
+`{
+  "error": 1004,
+  "message": "指定された口座は登録されていません。"
+}`。ログに`account fetch failed: accountId=99999999`のWARNが出力されること（目視）。
 
 ---
 
@@ -176,7 +184,10 @@ curl -v -X POST "http://localhost:21002/staking/update" \
   -H "Content-Type: application/json" \
   -d '{"accountId": "10000001", "changeList": [{"currency":"ETH","isRewardRejection":false,"receivedCurrency":"ETH"}]}' | jq
 ```
-期待結果: `417`、`{"error":2008,...}`。
+期待結果: `417`、`{
+  "error": 2008,
+  "message": "口座状況が不正です。"
+}`。
 
 ---
 
@@ -228,19 +239,41 @@ curl -v -X POST "http://localhost:21002/staking/update" \
   -H "Content-Type: application/json" \
   -d '{"accountId":"10000008"}' | jq
 ```
-期待結果: `400`、`changeList must not be null`系のメッセージ。
+期待結果: {
+  "error": 1000,
+  "message": "accountId must match \"\\d{8}\""
+}
+
+---
+
+### TC-E09b: changeList内の要素がnull（既知の制約）
+
+上記TC-E09（`changeList`という入れ物自体が無い/nullの場合）とは別のケース。`changeList`はあるが、中の要素がnullの場合。
+
+```bash
+curl -v -X POST "http://localhost:21002/staking/update" \
+  -H "Content-Type: application/json" \
+  -d '{"accountId":"10000008","changeList":[null]}' | jq
+```
+
+期待結果: `500`、`{
+  "error": 2008,
+  "message": "口座状況が不正です。"
+}`。
+
+Bean Validationの`@Valid`カスケード検証は、リストの要素自体がnullの場合を検出しない仕様上の制約があるため、このリクエストはバリデーションを通過してServiceまで到達し、`NullPointerException`が発生してControllerの`catch(Exception e)`経由で500になる。これは今回意図的にプロダクションコードは修正せず、自動テストで実際の挙動として固定している（`StakingRewardsControllerValidationTest#update_doesNotRejectChangeListElementNullAtValidationLayer`、`StakingRewardsServiceTest#update_throwsNullPointerExceptionWhenChangeListElementIsNull`）。手動テストで500が返ってきても、新規バグではなく既知の制約なので混同しないこと。
 
 ---
 
 ## ログ目視確認ポイント一覧
-
+w
 | ログ文言（先頭部分） | HTTPステータス | 出現するはずのケース |
 |---|---|---|
 | `account fetch failed: accountId=` | 404 | TC-E06（GET/POST共通） |
 | `口座ステータスが正しくありません。: accountId=` | 200(空リスト)/417 | TC-E07 |
 | `staking rewards change invalid request: accountId=` | 400 | TC-E08（①②③いずれも） |
 | `staking rewards fetch failed.: accountId=` | 500 | GET側の想定外エラー時のみ。手動では再現困難なため、自動テスト（`getStakingRewardsEntryList_returnsInternalServerErrorOnException`）でのみ検証済み |
-| `staking rewards change failed.: accountId=` | 500 | POST側の想定外エラー時のみ。上記のいずれのケースでも出現しないことを確認する（500ケースが混入していないかのチェック） |
+| `staking rewards change failed.: accountId=` | 500 | POST側の想定外エラー時のみ。TC-E09bはこのログを経由して500になる（想定内）。それ以外のケースでは出現しないことを確認する |
 
 ---
 
@@ -263,6 +296,12 @@ curl -s -X POST "${BASE_URL}/staking/update" -H "Content-Type: application/json"
 echo "=== 反映確認 ==="
 curl -s -X GET "${BASE_URL}/staking/${ACCOUNT_ID}" | jq
 
+echo "=== TC-E03: 同日中に別の値へ再変更(上書き確認) ==="
+curl -s -X POST "${BASE_URL}/staking/update" -H "Content-Type: application/json" -d '{
+  "accountId": "'${ACCOUNT_ID}'",
+  "changeList": [{"currency": "ETH", "isRewardRejection": false, "receivedCurrency": "USDC"}]
+}' | jq
+
 echo "=== TC-E04: 拒否設定へ変更 ==="
 curl -s -X POST "${BASE_URL}/staking/update" -H "Content-Type: application/json" -d '{
   "accountId": "'${ACCOUNT_ID}'",
@@ -279,4 +318,7 @@ curl -s -o /dev/null -w "POST status=%{http_code}\n" -X POST "${BASE_URL}/stakin
 echo "=== TC-E08: receivedCurrency未指定と変換先不正でメッセージが異なることを確認 ==="
 curl -s -X POST "${BASE_URL}/staking/update" -H "Content-Type: application/json" -d '{"accountId":"'${ACCOUNT_ID}'","changeList":[{"currency":"ETH","isRewardRejection":false}]}' | jq
 curl -s -X POST "${BASE_URL}/staking/update" -H "Content-Type: application/json" -d '{"accountId":"'${ACCOUNT_ID}'","changeList":[{"currency":"ETH","isRewardRejection":false,"receivedCurrency":"存在しない銘柄コード"}]}' | jq
+
+echo "=== TC-E09b: changeList要素がnull(既知の制約、500が返るのが正常) ==="
+curl -s -o /dev/null -w "status=%{http_code}\n" -X POST "${BASE_URL}/staking/update" -H "Content-Type: application/json" -d '{"accountId":"'${ACCOUNT_ID}'","changeList":[null]}'
 ```
